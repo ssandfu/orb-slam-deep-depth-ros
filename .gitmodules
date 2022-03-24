@@ -1,0 +1,3 @@
+[submodule "Thirdparty/cppflow"]
+	path = Thirdparty/cppflow
+	url = git@github.com:serizba/cppflow.git
