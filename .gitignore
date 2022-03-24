@@ -1,0 +1,4 @@
+./orb_slam2/Thirdparty/DBoW2/lib/libDBoW2.--allow-unrelated-historiesso
+./orb_slam2/Thirdparty/g2o/lib/libg2o.so
+./orb_slam2/lib/liborb_slam2_ros.so
+./pydnet/src/__pycache__
