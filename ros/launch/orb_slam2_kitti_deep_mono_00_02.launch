@@ -1,0 +1,116 @@
+<launch>
+
+  <param name="/use_sim_time" value="true" /> 
+
+  <!-- "camera" should uniquely identify the device. All topics are pushed down
+       into the "camera" namespace, and it is prepended to tf frame ids. -->
+  <arg name="camera"      default="camera"/>
+  <arg name="publish_tf"  default="true"/>
+
+  <arg name="nStereoDelay" default="10"/>
+  <arg name="nKFEnhance" default="1"/>
+  
+  <arg name="load_map" default="false"/>
+  <arg name="map_file" default="/home/stephan/Map.bin" />
+
+  <!-- "Optimization" of Calibration from Best performing SLAM on Leaderboard on KIITT Website"-->
+    <!-- <arg name="focal_length_x" default="975"/>  default="718.8560"/> -->
+    <!-- <arg name="focal_length_y" default="975"/> default="718.8560"/> -->
+    <!-- <arg name="center_point_x" default="700" /> -->
+    <!-- <arg name="center_point_y" default="247" /> -->
+    <!-- <arg name="camera_sensor_distance" default="0.539" />  -->
+  <!-- focal_length * camera_sensor_distance -->
+    <!-- <arg name="camera_baseline" default="525.525" />  -->
+
+  <!-- "Standard Calibration" from KITTI VO benchmark-->
+    <arg name="focal_length_x" default="718.8560"/>
+    <arg name="focal_length_y" default="718.8560"/> 
+    <arg name="center_point_x" default="607.1928"/> 
+    <arg name="center_point_y" default="185.2157"/> 
+    <arg name="camera_sensor_distance" default="0.539" />
+  <!-- focal_length * camera_sensor_distance -->
+    <arg name="camera_baseline" default="386.1448" />
+
+  <node name="orb_slam2_deep_mono" pkg="orb_slam_deep_depth_ros"
+      type="orb_slam2_deep_mono" output="screen">
+
+       <!-- <remap from="/camera/image_raw" to="/camera/rgb/image_raw" /> -->
+<!--       <remap from="/camera/rgb/image_raw" to="/kitti/camera_gray_left/image_rect" /> -->
+<!--       <remap from="/image_right/image_color_rect" to="/kitti/camera_gray_right/image_rect" /> -->
+       <remap from="/camera/rgb/image_raw" to="/kitti/camera_color_left/image_rect" />
+       <!-- <remap from="/image_right/image_color_rect" to="/kitti/camera_color_right/image_rect" /> -->
+       <remap from="/camera/camera_info" to="/kitti/camera_color_left/camera_info" />
+       
+     <!-- Should not be necessary and in this configuration of the seperate Depth-Module -->
+      <remap from="/depth_network_image" to="/pydnetPublisher" />
+      <!-- <remap from="/map" to="/world" /> -->
+
+
+       <param name="publish_pointcloud" type="bool" value="true" />
+       <param name="publish_pose" type="bool" value="true" />
+       <param name="localize_only" type="bool" value="false" />
+       <param name="reset_map" type="bool" value="false" />
+
+       <!-- static parameters -->
+       <param name="load_map" type="bool" value="$(arg load_map)" />
+       <param name="map_file" type="string" value="$(arg map_file)" />
+       <param name="voc_file" type="string" value="$(find orb_slam_deep_depth_ros)/orb_slam2/Vocabulary/ORBvoc.txt" />
+	
+       <param name="pointcloud_frame_id" type="string" value="map" />
+       <param name="camera_frame_id" type="string" value="camera_left" />
+       <param name="min_num_kf_in_map" type="int" value="10" />
+
+       <!-- ORB parameters -->
+       <param name="/ORBextractor/nFeatures" type="int" value="2000" />
+       <param name="/ORBextractor/scaleFactor" type="double" value="1.2" />
+       <param name="/ORBextractor/nLevels" type="int" value="8" />
+       <param name="/ORBextractor/iniThFAST" type="int" value="20" />
+       <param name="/ORBextractor/minThFAST" type="int" value="7" />
+
+       <!-- Camera parameters -->
+       <!-- Camera frames per second -->
+       <param name="camera_fps" type="int" value="10" />       
+       <!-- Color order of the images (0: BGR, 1: RGB. It is ignored if images are grayscale) -->
+       <param name="camera_rgb_encoding" type="bool" value="true" />
+
+      <!-- Close/Far threshold. Baseline times. -->
+       <param name="ThDepth" type="double" value="40.0" />
+     
+     <!-- Deptmap values factor (what pixel value in the depth image corresponds to 1m) -->
+       <param name="depth_map_factor" type="double" value="1.0" />
+
+
+
+        <!-- Camera calibration parameters -->
+        <!--If the node should wait for a camera_info topic to take the camera calibration data-->
+       <param name="load_calibration_from_cam" type="bool" value="false" />
+       <!-- Camera calibration and distortion parameters (OpenCV) -->
+      <param name="camera_fx" type="double" value="$(arg focal_length_x)" />
+      <param name="camera_fy" type="double" value="$(arg focal_length_x)" />
+      <param name="camera_cx" type="double" value="$(arg center_point_x)" />
+      <param name="camera_cy" type="double" value="$(arg center_point_y)" />
+       <!-- Camera calibration and distortion parameters (OpenCV) -->
+      <param name="camera_k1" type="double" value="0.0" />
+      <param name="camera_k2" type="double" value="0.0" />
+      <param name="camera_p1" type="double" value="0.0" />
+      <param name="camera_p2" type="double" value="0.0" />
+      <param name="camera_k3" type="double" value="0.0" />
+
+      <!-- <param name="camera_baseline" type="double" value="1.0" /> -->
+       <param name="camera_baseline" type="double" value="$(arg camera_baseline)" /> 
+       
+       <param name="nStereoDelay" value="$(arg nStereoDelay)"/>
+       <param name="nKFEnhance" value="$(arg nKFEnhance)"/>
+       
+  </node>
+  
+  <node name="pydnetNode_python" pkg="orb_slam_deep_depth_ros" type="pydnetNode_python" output="screen">
+     <!-- TODO: For testing purposes the corect topic is hardcoded in the script-->
+     <!-- <remap from="/image/rgb/image_rect" to="/kitti/camera_color_left/image_rect" /> -->
+     <remap from="/kitti/camera_color_left/image_rect" to="/depth_model_task_image" /> 
+
+  </node>
+
+   <node pkg="tf" type="static_transform_publisher" name="link1_broadcaster" args="0 0 0 0 0 0 1 /base_link /camera_left 100" />
+  
+</launch>

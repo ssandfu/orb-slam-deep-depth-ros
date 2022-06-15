@@ -1,0 +1,18 @@
+<launch>
+
+  <arg name="focal_length_x" default="718.8560"/>
+  <arg name="focal_length_y" default="718.8560"/>
+  <arg name="camera_sensor_distance" default="0.54" /> 
+
+  <!-- focal_length * camera_sensor_distance -->
+  <arg name="camera_baseline" default="386.1448" /> 
+  
+  <node name="pydnetNode_python" pkg="orb_slam_deep_depth_ros" type="pydnetNode_python" output="screen"
+     args="--checkpoint_dir /home/stephan//Dokumente/DeepSLAM/ROS-Workspace/catkin_ws/src/orb_slam_deep_depth_ros/nodes/checkpoint/IROS18/pydnet --resolution 1">
+     <!-- TODO: For testing purposes the corect topic is hardcoded in the script-->
+     <!-- <remap from="/image/rgb/image_rect" to="/kitti/camera_color_left/image_rect" /> -->
+  </node>
+
+   <node pkg="tf" type="static_transform_publisher" name="link1_broadcaster" args="0 0 0 0 0 0 1 /base_link /camera_left 100" />
+  
+</launch>

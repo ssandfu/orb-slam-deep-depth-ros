@@ -1,18 +1,25 @@
-cmake_minimum_required(VERSION 2.8.3)
+#cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.10)
 project(orb_slam_deep_depth_ros)
 
 IF(NOT CMAKE_BUILD_TYPE)
   SET(CMAKE_BUILD_TYPE Release)
 ENDIF()
 
+# For including and using cppflow in the package
+find_library(TENSORFLOW_LIB tensorflow HINT $ENV{HOME}/libtensorflow2/lib)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-omit-frame-pointer -fsanitize=address")
+set(CMAKE_LINKER_FLAGS "${CMAKE_LINKER_FLAGS} -lasan")
+
 # Check for c++11 support
-INCLUDE(CheckCXXCompilerFlag)
-CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11)
-IF(COMPILER_SUPPORTS_CXX11)
-  set(CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
-ELSE()
-  MESSAGE(ERROR "The compiler ${CMAKE_CXX_COMPILER} has no C++11 support. Please use a different C++ compiler.")
-ENDIF()
+#INCLUDE(CheckCXXCompilerFlag)
+#CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11)
+#IF(COMPILER_SUPPORTS_CXX11)
+#  set(CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
+#ELSE()
+#  MESSAGE(ERROR "The compiler ${CMAKE_CXX_COMPILER} has no C++11 support. Please use a different C++ compiler.")
+#ENDIF()
 
 LIST(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/orb_slam2/cmake_modules)
 
@@ -40,6 +47,8 @@ if(NOT OpenCV_FOUND)
 endif()
 
 find_package(Eigen3 3.1.0 REQUIRED)
+
+catkin_python_setup()
 
 set (DYNAMIC_RECONFIGURE_PATH ros/config/dynamic_reconfigure.cfg)
 execute_process(COMMAND chmod a+x ${DYNAMIC_RECONFIGURE_PATH}
@@ -70,9 +79,14 @@ add_service_files(
         SaveMap.srv
 )
 
+add_message_files(
+  FILES 
+  heartbeat.msg
+)
+
 generate_messages(
-        DEPENDENCIES
-        std_msgs
+  DEPENDENCIES
+  std_msgs
 )
 
 catkin_package (
@@ -84,7 +98,9 @@ include_directories(
 ${PROJECT_SOURCE_DIR}/orb_slam2
 ${PROJECT_SOURCE_DIR}/orb_slam2/include
 ${PROJECT_SOURCE_DIR}/ros/include
-${PROJECT_SOURCE_DIR}/pydnet/include
+${PROJECT_SOURCE_DIR}/include
+${PROJECT_SOURCE_DIR}/Thirdparty/cppflow/include
+$ENV{HOME}/libtensorflow2/include
 ${EIGEN3_INCLUDE_DIR}
 ${catkin_INCLUDE_DIRS}
 )
@@ -157,23 +173,28 @@ target_link_libraries(${PROJECT_NAME}_rgbd
 ${LIBS_ROS}
 )
 
-add_executable (${PROJECT_NAME}_mono_depth
-ros/src/MonoDepthNode.cc
+add_executable (orb_slam2_deep_mono
+ros/src/DeepMonoNode.cc
 ros/src/Node.cc
 )
-add_dependencies (${PROJECT_NAME}_mono_depth ${PROJECT_NAME} ${PROJECT_NAME}_gencfg)
+add_dependencies (orb_slam2_deep_mono ${PROJECT_NAME} ${PROJECT_NAME}_gencfg)
 
-target_link_libraries(${PROJECT_NAME}_mono_depth
+target_link_libraries(orb_slam2_deep_mono
 ${LIBS_ROS}
 )
 
 add_executable (${PROJECT_NAME}_pydnet
-pydnet/src/pydnetNode.cc
+src/pydnetNode.cc
 )
 add_dependencies (${PROJECT_NAME}_pydnet ${PROJECT_NAME})
 
 target_link_libraries(${PROJECT_NAME}_pydnet
 ${LIBS_ROS}
+${TENSORFLOW_LIB}
+)
+
+catkin_install_python(PROGRAMS nodes/pydnetNode_python
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
 install(TARGETS ${PROJECT_NAME}_pydnet
@@ -182,7 +203,7 @@ install(TARGETS ${PROJECT_NAME}_pydnet
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
-install(TARGETS ${PROJECT_NAME}_mono ${PROJECT_NAME}_stereo ${PROJECT_NAME}_rgbd ${PROJECT_NAME}_mono_depth
+install(TARGETS ${PROJECT_NAME}_mono ${PROJECT_NAME}_stereo ${PROJECT_NAME}_rgbd orb_slam2_deep_mono
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

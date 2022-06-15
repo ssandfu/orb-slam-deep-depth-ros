@@ -1,0 +1,156 @@
+#!/usr/bin/env python
+from __future__ import print_function
+
+#import roslib
+#roslib.load_manifest('package.xml')
+import sys
+import rospy
+import cv2
+#from std_msgs.msg import String
+from sensor_msgs.msg import Image
+from cv_bridge import CvBridge, CvBridgeError
+
+import tensorflow as tf
+import sys
+import os
+import argparse
+import time
+import datetime
+
+import numpy as np
+
+import pydnet.utils as utils
+import pydnet.pydnet_v2 as pydnet
+
+# forces tensorflow to run on CPU
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+
+"""
+parser = argparse.ArgumentParser(description='Argument parser')
+
+# Arguments related to network architecture
+
+parser.add_argument('--width', dest='width', type=int, default=512, help='width of input images')
+parser.add_argument('--height', dest='height', type=int, default=256, help='height of input images')
+parser.add_argument('--resolution', dest='resolution', type=int, default=1, help='resolution [1:H, 2:Q, 3:E]')
+parser.add_argument('--checkpoint_dir', dest='checkpoint_dir', type=str, 
+        default='/home/stephan//Dokumente/DeepSLAM/ROS-Workspace/catkin_ws/src/orb_slam_deep_depth_ros/nodes/checkpoint/IROS18/pydnet', 
+        help='checkpoint directory')
+
+args = parser.parse_args()
+"""
+
+focal_length = 718.8560 #[mm]
+baseline = 0.54         #[m]
+maxDepth = 100.0        #[m], will be used as mm
+minDepth = 0.0          #[m], will be used as mm
+
+class depth_predictor:
+
+  def __init__(self):
+    self.image_pub = rospy.Publisher("/pydnetPublisher",Image, queue_size=10)
+
+    self.bridge = CvBridge()
+    self.image_sub = rospy.Subscriber("/kitti/camera_color_left/image_rect",Image,self.callback, queue_size=1)
+
+    #self.height = args.height
+    #self.width = args.width
+
+    with tf.Graph().as_default():
+      self.placeholders = {'im0':tf.compat.v1.placeholder(tf.float32,[None, None, None, 3], name='im0')}
+
+      with tf.compat.v1.variable_scope("model") as scope:
+        self.model = pydnet.pydnet(self.placeholders)
+
+      self.init = tf.group(tf.compat.v1.global_variables_initializer(),
+                    tf.compat.v1.local_variables_initializer())
+      
+      # SESSION
+      config = tf.compat.v1.ConfigProto(allow_soft_placement=True)
+      self.sess = tf.compat.v1.Session(config=config)
+
+      # SAVER
+      self.train_saver = tf.compat.v1.train.Saver()
+
+      # INIT
+      self.sess.run(tf.compat.v1.global_variables_initializer())
+      self.sess.run(tf.compat.v1.local_variables_initializer())
+      coordinator = tf.train.Coordinator()
+      threads = tf.compat.v1.train.start_queue_runners(sess=self.sess, coord=coordinator)
+
+      # RESTORE
+      checkpoint_dir = '/home/stephan//Dokumente/DeepSLAM/ROS-Workspace/catkin_ws/src/orb_slam_deep_depth_ros/nodes/checkpoint/IROS18/pydnet'
+      #self.train_saver.restore(self.sess, args.checkpoint_dir)
+      self.train_saver.restore(self.sess, checkpoint_dir)
+
+
+
+  def callback(self, data):
+    data_type = np.uint16
+    dtype_max = np.iinfo(data_type).max
+    oldTimestamp = data.header.stamp
+    print(oldTimestamp)
+    start = time.time()
+    try:
+      cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
+    except CvBridgeError as e:
+      print(e)
+    (orig_height, orig_width) = cv_image.shape[0:2]
+    #print((orig_height, orig_width))
+
+    # TBD: This has to be adapted to be able to handle different image sizes
+    n = int(orig_height/64)
+    input_height = n*64
+    input_width = 2*input_height
+    #print((input_height, input_width))
+    
+    #disparities = np.zeros((1, 256, 512), dtype=np.float32)
+    img = cv2.resize(cv_image, (input_width, input_height)).astype(np.float32) / 255.
+    img = np.expand_dims(img, 0)
+
+    resolution = 1
+    #pred_Disp = self.sess.run(self.model.results[args.resolution-1], feed_dict={self.placeholders['im0']: img})
+    pred_Disp = self.sess.run(self.model.results[resolution-1], feed_dict={self.placeholders['im0']: img})
+
+    disparities = pred_Disp[0,:,:,0]
+    
+    depth_mm = focal_length * baseline / disparities #[mm]
+    depth_mm = np.minimum(depth_mm, maxDepth * 1e3)
+    depth_mm = np.maximum(depth_mm, minDepth * 1e3)
+    
+    
+    toPublish = cv2.resize(depth_mm, (orig_width, orig_height), interpolation=cv2.INTER_LINEAR).astype(data_type)
+    try:
+      depth_publishable = self.bridge.cv2_to_imgmsg(toPublish, "mono16")
+      depth_publishable.header.stamp = oldTimestamp
+      self.image_pub.publish(depth_publishable)
+    except CvBridgeError as e:
+      print(e)
+    end = time.time()
+    print("Depth Publishing Time: " + str(end - start))
+    """
+    disp_color = utils.applyColorMap(pred_Disp[0,:,:,0]*20, 'plasma')
+    toShow = (disp_color * 255.).astype(np.uint8)
+    toShow = cv2.resize(toShow, (orig_width, orig_height), interpolation=cv2.INTER_LINEAR)
+    """
+    """
+    toShow = cv2.resize(depth_mm / (maxDepth * 1e3) * dtype_max, (orig_width, orig_height), interpolation=cv2.INTER_LINEAR).astype(data_type)
+    cv2.imshow(f"PyD-Net: MaxDepth {maxDepth:03.1f}m", toShow)
+    cv2.waitKey(3)
+    """
+    
+    
+    
+
+
+def main(args):
+  dp = depth_predictor()
+  rospy.init_node('pydnet_depth_prediction')
+  try:
+    rospy.spin()
+  except KeyboardInterrupt:
+    print("Shutting down")
+  cv2.destroyAllWindows()
+
+if __name__ == '__main__':
+    main(sys.argv)

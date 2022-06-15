@@ -1,23 +1,46 @@
 <launch>
 
-<param name="/use_sim_time" value="true" /> 
+  <param name="/use_sim_time" value="true" /> 
 
   <!-- "camera" should uniquely identify the device. All topics are pushed down
        into the "camera" namespace, and it is prepended to tf frame ids. -->
   <arg name="camera"      default="camera"/>
   <arg name="publish_tf"  default="true"/>
 
+  <arg name="nStereoDelay" default="10"/>
+  <arg name="nKFEnhance" default="1"/>
+  
+  <arg name="load_map" default="false"/>
+  <arg name="map_file" default="/home/stephan/Map.bin" />
 
-  <node name="orb_slam2_mono" pkg="orb_slam2_ros"
-      type="orb_slam2_ros_mono" output="screen">
+  <!-- "Optimization" of Calibration from Best performing SLAM on Leaderboard on KIITT Website"-->
+  <!-- camera_baseline = focal_length * camera_sensor_distance -->
+<!-->     <arg name="focal_length_x" default="975"/>
+     <arg name="focal_length_y" default="975"/> 
+     <arg name="center_point_x" default="700" />
+     <arg name="center_point_y" default="247" />
+     <arg name="camera_sensor_distance" default="0.539" />
+     <arg name="camera_baseline" default="525.525" /> 
+<-->
 
-       <!-- <remap from="/camera/image_raw" to="/camera/rgb/image_raw" /> -->
-       <!-- <remap from="/camera/image_raw" to="/kitti/camera_gray_left/image_rect" /> -->
+  <!-- "Standard Calibration" from KITTI VO benchmark-->
+  <!-- camera_baseline = focal_length * camera_sensor_distance -->
+     <arg name="focal_length_x" default="718.8560"/>
+    <arg name="focal_length_y" default="718.8560"/> 
+    <arg name="center_point_x" default="607.1928"/> 
+    <arg name="center_point_y" default="185.2157"/> 
+    <arg name="camera_sensor_distance" default="0.539" /> 
+    <arg name="camera_baseline" default="386.1448" />  
+    <!--<arg name="camera_sensor_distance" default="0.539" /> -->
+    <!-- <arg name="camera_baseline" default="0.539" />-->
+
+    
+
+
+  <node name="orb_slam_deep_depth_ros_mono" pkg="orb_slam_deep_depth_ros"
+      type="orb_slam_deep_depth_ros_mono" output="screen">
        <remap from="/camera/image_raw" to="/kitti/camera_color_left/image_rect" />
-       <remap from="/camera/camera_info" to="/kitti/camera_gray_left/camera_info" />
-       <!-- <remap from="/map" to="/world" /> -->
-       
-
+       <remap from="/camera/camera_info" to="/kitti/camera_color_left/camera_info" />
 
        <param name="publish_pointcloud" type="bool" value="true" />
        <param name="publish_pose" type="bool" value="true" />
@@ -25,9 +48,9 @@
        <param name="reset_map" type="bool" value="false" />
 
        <!-- static parameters -->
-       <param name="load_map" type="bool" value="false" />
-       <param name="map_file" type="string" value="map.bin" />
-       <param name="voc_file" type="string" value="$(find orb_slam2_ros)/orb_slam2/Vocabulary/ORBvoc.txt" />
+       <param name="load_map" type="bool" value="$(arg load_map)" />
+       <param name="map_file" type="string" value="$(arg map_file)" />
+       <param name="voc_file" type="string" value="$(find orb_slam_deep_depth_ros)/orb_slam2/Vocabulary/ORBvoc.txt" />
 	
        <param name="pointcloud_frame_id" type="string" value="map" />
        <param name="camera_frame_id" type="string" value="camera_left" />
@@ -39,21 +62,33 @@
        <param name="/ORBextractor/nLevels" type="int" value="8" />
        <param name="/ORBextractor/iniThFAST" type="int" value="20" />
        <param name="/ORBextractor/minThFAST" type="int" value="7" />
-
+       
+       <!--> 
+       <param name="/ORBextractor/iniThFAST" type="int" value="15" />
+       <param name="/ORBextractor/minThFAST" type="int" value="2" />
+       <-->
        <!-- Camera parameters -->
        <!-- Camera frames per second -->
-       <param name="camera_fps" type="int" value="30" />
+       <param name="camera_fps" type="int" value="10" />       
        <!-- Color order of the images (0: BGR, 1: RGB. It is ignored if images are grayscale) -->
        <param name="camera_rgb_encoding" type="bool" value="true" />
+
+      <!-- Close/Far threshold. Baseline times. -->
+       <param name="ThDepth" type="double" value="40.0" />
+     
+     <!-- Deptmap values factor (what pixel value in the depth image corresponds to 1m) -->
+       <param name="depth_map_factor" type="double" value="1000.0" />
+
+
 
         <!-- Camera calibration parameters -->
         <!--If the node should wait for a camera_info topic to take the camera calibration data-->
        <param name="load_calibration_from_cam" type="bool" value="false" />
        <!-- Camera calibration and distortion parameters (OpenCV) -->
-      <param name="camera_fx" type="double" value="718.8560" />
-      <param name="camera_fy" type="double" value="718.8560" />
-      <param name="camera_cx" type="double" value="607.1928" />
-      <param name="camera_cy" type="double" value="185.2157" />
+      <param name="camera_fx" type="double" value="$(arg focal_length_x)" />
+      <param name="camera_fy" type="double" value="$(arg focal_length_x)" />
+      <param name="camera_cx" type="double" value="$(arg center_point_x)" />
+      <param name="camera_cy" type="double" value="$(arg center_point_y)" />
        <!-- Camera calibration and distortion parameters (OpenCV) -->
       <param name="camera_k1" type="double" value="0.0" />
       <param name="camera_k2" type="double" value="0.0" />
@@ -61,12 +96,14 @@
       <param name="camera_p2" type="double" value="0.0" />
       <param name="camera_k3" type="double" value="0.0" />
 
-      <param name="camera_baseline" type="double" value="1.0" />
-      
-       <param name="nStereoDelay" value="0"/>
-       <param name="nKFEnhance" value="0"/>
+      <!-- <param name="camera_baseline" type="double" value="1.0" /> -->
+       <param name="camera_baseline" type="double" value="$(arg camera_baseline)" /> 
+       
+       <param name="nStereoDelay" value="$(arg nStereoDelay)"/>
+       <param name="nKFEnhance" value="$(arg nKFEnhance)"/>
+       
   </node>
-  
+
    <node pkg="tf" type="static_transform_publisher" name="link1_broadcaster" args="0 0 0 0 0 0 1 /base_link /camera_left 100" />
   
 </launch>
