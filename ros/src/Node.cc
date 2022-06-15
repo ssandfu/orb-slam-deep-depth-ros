@@ -20,7 +20,7 @@ Node::~Node () {
   ROS_INFO("ATTENTION: The save direction of the keyframe trajectory was changed to: /home/stephan/KeyFrameTrajectory.txt" );
   orb_slam_->SaveKeyFrameTrajectoryTUM("/home/stephan/KeyFrameTrajectory.txt");
 
-  orb_slam_->SaveMap("/home/stephan/Map.bin"); 
+  //orb_slam_->SaveMap("/home/stephan/Map.bin"); 
 
   delete orb_slam_;
 }
@@ -322,7 +322,7 @@ void Node::LoadOrbParameters (ORB_SLAM2::ORBParameters& parameters) {
   node_handle_.param(name_of_node_ + "/load_calibration_from_cam", load_calibration_from_cam, false);
 
   if (sensor_== ORB_SLAM2::System::STEREO || sensor_==ORB_SLAM2::System::RGBD 
-      || sensor_==ORB_SLAM2::System::MONOCULAR_DEPTH) {
+      || sensor_==ORB_SLAM2::System::DEEP_MONOCULAR) {
     node_handle_.param(name_of_node_ + "/ThDepth", parameters.thDepth, static_cast<float>(35.0));
     node_handle_.param(name_of_node_ + "/depth_map_factor", parameters.depthMapFactor, static_cast<float>(1.0));
 
@@ -354,7 +354,7 @@ void Node::LoadOrbParameters (ORB_SLAM2::ORBParameters& parameters) {
 
   bool got_cam_calibration = true;
   if (sensor_== ORB_SLAM2::System::STEREO || sensor_==ORB_SLAM2::System::RGBD 
-      || sensor_==ORB_SLAM2::System::MONOCULAR_DEPTH) {
+      || sensor_== ORB_SLAM2::System::DEEP_MONOCULAR) {
     got_cam_calibration &= node_handle_.getParam(name_of_node_ + "/camera_baseline", parameters.baseline);
   }
 

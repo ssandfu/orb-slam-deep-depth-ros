@@ -33,6 +33,9 @@
 #include <opencv2/core/core.hpp>
 #include <tf/transform_broadcaster.h>
 
+#include <orb_slam_deep_depth_ros/heartbeat.h>
+
+
 #include "System.h"
 #include "Node.h"
 
@@ -44,8 +47,16 @@ class MonoNode : public Node
     ~MonoNode ();
     void ImageCallback (const sensor_msgs::ImageConstPtr& msg);
 
+    void publishHeartBeat () ;
+
+    void checkIsLocalMapIdle();
+
   private:
     image_transport::Subscriber image_subscriber;
+
+    ros::Publisher heartbeat_publisher_;
+    std::atomic_bool publish_heartbeat_map_idle;
+
 };
 
 #endif //ORBSLAM2_ROS_MONONODE_H_

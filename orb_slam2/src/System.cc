@@ -55,7 +55,7 @@ System::System(const string strVocFile, const eSensor sensor, ORBParameters& par
         cout << "Stereo" << endl;
     else if(mSensor==RGBD)
         cout << "RGB-D" << endl;
-    else if(mSensor==MONOCULAR_DEPTH)
+    else if(mSensor==DEEP_MONOCULAR)
         cout << "Monocular with aperiodic Depth information" << endl;
 
     //Load ORB Vocabulary
@@ -109,12 +109,12 @@ System::System(const string strVocFile, const eSensor sensor, ORBParameters& par
                              mpMap, mpKeyFrameDatabase, mSensor, parameters);
 
     //Initialize the Local Mapping thread and launch
-    bool bMONOLIKE = mSensor==MONOCULAR || mSensor==MONOCULAR_DEPTH;
+    bool bMONOLIKE = mSensor==MONOCULAR || mSensor==DEEP_MONOCULAR;
     mpLocalMapper = new LocalMapping(mpMap, bMONOLIKE);
     mptLocalMapping = new thread(&ORB_SLAM2::LocalMapping::Run,mpLocalMapper);
 
     //Initialize the Loop Closing thread and launch
-    bool bFixScale = mSensor!=MONOCULAR && mSensor!=MONOCULAR_DEPTH;
+    bool bFixScale = mSensor!=MONOCULAR && mSensor!=DEEP_MONOCULAR;
     mpLoopCloser = new LoopClosing(mpMap, mpKeyFrameDatabase, mpVocabulary, bFixScale);
     mptLoopClosing = new thread(&ORB_SLAM2::LoopClosing::Run, mpLoopCloser);
 
@@ -285,62 +285,43 @@ void System::TrackMonocular(const cv::Mat &im, const double &timestamp)
     current_position_ = Tcw;
 }
 
-//Only Mono-Sensor is available
-void System::TrackMonocularDepth(const cv::Mat &im, const double &timestamp)
-{
-    if(mSensor!=MONOCULAR_DEPTH)
-    {
-        cerr << "ERROR: you called TrackMonocularDepth but input sensor was not set to Monocular_Depth." << endl;
-        exit(-1);
-    }
-
-    // Check mode change
-    {
-        unique_lock<mutex> lock(mMutexMode);
-        if(mbActivateLocalizationMode)
-        {
-            mpLocalMapper->RequestStop();
-
-            // Wait until Local Mapping has effectively stopped
-            while(!mpLocalMapper->isStopped())
-            {
-                std::this_thread::sleep_for(std::chrono::microseconds(1000));
-            }
-
-            mpTracker->InformOnlyTracking(true);
-            mbActivateLocalizationMode = false;
-        }
-        if(mbDeactivateLocalizationMode)
-        {
-            mpTracker->InformOnlyTracking(false);
-            mpLocalMapper->Release();
-            mbDeactivateLocalizationMode = false;
-        }
-    }
-
-    // Check reset
-    {
-    unique_lock<mutex> lock(mMutexReset);
-    if(mbReset)
-    {
-        mpTracker->Reset();
-        mbReset = false;
-    }
-    }
-    cv::Mat Tcw = mpTracker->GrabImageMonocular(im,timestamp);
-
-    unique_lock<mutex> lock2(mMutexState);
-    mTrackingState = mpTracker->mState;
-    mTrackedMapPoints = mpTracker->mCurrentFrame.mvpMapPoints;
-    mTrackedKeyPointsUn = mpTracker->mCurrentFrame.mvKeysUn;
-
-    current_position_ = Tcw;
+bool System::timestamps_match (double timestamp1, double timestamp2){
+    double diff = timestamp1 - timestamp2;
+    if (diff < 0)
+        diff = -diff;
+    return diff < precision_enhanced_timestamp;
 }
 
+//This is the standard function to call when using an external depth model (i.e. pydnet)
+void System::TrackDeepMono(const cv::Mat &im, const double &timestamp, const bool isEnhanced)
+{
+    eSensor mSensor_tmp = mSensor;
+    mSensor = MONOCULAR;
+    TrackMonocular(im, timestamp);
+    mSensor = mSensor_tmp;
+
+    //Check if is enhanced and update the current image accordingly
+    if(isEnhanced){
+        last_enhanced_timestamp_ = mpTracker->mCurrentFrame.mTimeStamp;
+    }
+
+}
+
+void System::TrackDeepDepth(const cv::Mat &im, const cv::Mat &depth, const double &timestamp){
+    bool matching_timestamps = timestamps_match(timestamp, last_enhanced_timestamp_);
+    //std::cout << "Matching timestamps: " << matching_timestamps << "    Diff:" << timestamp -  last_enhanced_timestamp_ << std::endl;
+    if(matching_timestamps){
+
+    }
+}
+
+
+
+//This is the method used for the stereo case for the RAAD22 Paper
 //A second image is also available
 void System::TrackMonocularDepth_Stereo(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timestamp)
 {   
-    if(mSensor!=MONOCULAR_DEPTH)
+    if(mSensor!=DEEP_MONOCULAR)
     {
         cerr << "ERROR: you called TrackMonocularDepth_Stereo but input sensor was not set to MONOCULAR_DEPTH." << endl;
         exit(-1);
@@ -422,7 +403,7 @@ void System::Shutdown()
     // Wait until all thread have effectively stopped
     while(!mpLocalMapper->isFinished() || !mpLoopCloser->isFinished() || mpLoopCloser->isRunningGBA())
     {
-        std::this_thread::sleep_for(std::chrono::microseconds(5000));
+        std::this_thread::sleep_for(std::chrono::microseconds(1000));
     }
     ROS_INFO("Shutdown Request-Loop. Finished.");
 }

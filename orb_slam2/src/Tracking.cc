@@ -111,10 +111,10 @@ Tracking::Tracking(System *pSys, ORBVocabulary* pVoc, FrameDrawer *pFrameDrawer,
 
     mpORBextractorLeft = new ORBextractor(nFeatures,fScaleFactor,nLevels,fIniThFAST,fMinThFAST);
 
-    if(sensor==System::STEREO || sensor==System::MONOCULAR_DEPTH)
+    if(sensor==System::STEREO || sensor==System::DEEP_MONOCULAR)
         mpORBextractorRight = new ORBextractor(nFeatures,fScaleFactor,nLevels,fIniThFAST,fMinThFAST);
 
-    if(sensor==System::MONOCULAR || sensor==System::MONOCULAR_DEPTH)
+    if(sensor==System::MONOCULAR || sensor==System::DEEP_MONOCULAR)
         mpIniORBextractor = new ORBextractor(2*nFeatures,fScaleFactor,nLevels,fIniThFAST,fMinThFAST);
 
     cout << endl  << "ORB Extractor Parameters: " << endl;
@@ -124,13 +124,13 @@ Tracking::Tracking(System *pSys, ORBVocabulary* pVoc, FrameDrawer *pFrameDrawer,
     cout << "- Initial Fast Threshold: " << fIniThFAST << endl;
     cout << "- Minimum Fast Threshold: " << fMinThFAST << endl;
 
-    if(sensor==System::STEREO || sensor==System::RGBD || sensor==System::MONOCULAR_DEPTH)
+    if(sensor==System::STEREO || sensor==System::RGBD || sensor==System::DEEP_MONOCULAR)
     {
         mThDepth = mbf*(float)mThDepth/parameters.fx;
         cout << endl << "Depth Threshold (Close/Far Points): " << mThDepth << endl;
     }
 
-    if(sensor==System::RGBD || sensor==System::MONOCULAR_DEPTH)
+    if(sensor==System::RGBD || sensor==System::DEEP_MONOCULAR)
     {
         if(fabs(mDepthMapFactor)<1e-5)
             mDepthMapFactor=1;
@@ -282,7 +282,7 @@ cv::Mat Tracking::GrabImageMonocularDepth_Stereo(const cv::Mat &imRectLeft, cons
         }
     }
 
-    //These two are only used in case for a MonoDepth sensor (mSensor==System::MONOCULAR_DEPTH)
+    //These two are only used in case for a MonoDepth sensor (mSensor==System::DEEP_MONOCULAR)
     mCurrentFrame_Stereo = Frame(mImGray,imGrayRight,timestamp,mpORBextractorLeft,mpORBextractorRight,mpORBVocabulary,mK,mDistCoef,mbf,mThDepth);
     mCurrentFrame_Monocular = Frame(mImGray,timestamp,mpORBextractorLeft,mpORBVocabulary,mK,mDistCoef,mbf,mThDepth);
 
@@ -303,6 +303,7 @@ cv::Mat Tracking::GrabImageMonocularDepth_Stereo(const cv::Mat &imRectLeft, cons
 
 void Tracking::Track()
 {
+    std::cout << std::endl;
     //Counter for keyframes so the modulo can be used to enhance only some keyframes
     //static int kfCntr = 0;
 
@@ -320,9 +321,10 @@ void Tracking::Track()
     {
         if(mSensor==System::STEREO || mSensor==System::RGBD)
             StereoInitialization();
-        else if (mSensor==System::MONOCULAR_DEPTH){
-            std::cout << "Mono Depth Initialization." << std::endl;
-            MonocularDepthInitialization();
+        else if (mSensor==System::DEEP_MONOCULAR){
+            //std::cout << "Mono Depth Initialization." << std::endl;
+            //MonocularDepthInitialization();#
+            MonocularInitialization();
         }
         else
             MonocularInitialization();
@@ -438,16 +440,20 @@ void Tracking::Track()
         // If we have an initial estimation of the camera pose and matching. Track the local map.
         if(!mbOnlyTracking)
         {
-            if(bOK)
+            if(bOK){
                 bOK = TrackLocalMap();
+                std::cout << "  Local Map Tracking: " << bOK << std::endl;
+            }
         }
         else
         {
             // mbVO true means that there are few matches to MapPoints in the map. We cannot retrieve
             // a local map and therefore we do not perform TrackLocalMap(). Once the system relocalizes
             // the camera we will use the local map again.
-            if(bOK && !mbVO)
+            if(bOK && !mbVO){
                 bOK = TrackLocalMap();
+                std::cout << "  Local Map Tracking with !mbVO check: " << bOK << std::endl;
+            }
         }
 
         if(bOK)
@@ -457,6 +463,8 @@ void Tracking::Track()
 
         // Update drawer
         mpFrameDrawer->Update(this);
+        std::cout << "Tracking State = " << bOK << std::endl;
+        std::cout << "  Local Map Idle = " << mpLocalMapper->AcceptKeyFrames() << std::endl;
 
         // If tracking were good, check if we insert a keyframe
         if(bOK)
@@ -492,8 +500,11 @@ void Tracking::Track()
             }
             mlpTemporalPoints.clear();
             // Check if we need to insert a new keyframe
-            if(NeedNewKeyFrame()){
-                bool b1 = mSensor == System::MONOCULAR_DEPTH;
+
+            bool bnewKeyFrame = NeedNewKeyFrame();
+
+            if(bnewKeyFrame){
+                bool b1 = mSensor == System::DEEP_MONOCULAR;
                 bool useKFEnhance = nKeyFrameEnhance != 0;
                 bool b2;
                 if (useKFEnhance)  
@@ -507,6 +518,7 @@ void Tracking::Track()
                     mCurrentFrame.mpORBextractorRight = mCurrentFrame_Stereo.mpORBextractorRight;
                     mCurrentFrame.ComputeStereoMatches();
                 }
+                std::cout << "Create new Keyframe" << std::endl;
                 CreateNewKeyFrame();
                 kfCntr += 1;
             }
@@ -873,7 +885,7 @@ void Tracking::UpdateLastFrame()
     if(mnLastKeyFrameId==mLastFrame.mnId || mSensor==System::MONOCULAR || !mbOnlyTracking)
         return;
 
-    if(mSensor==System::MONOCULAR_DEPTH)
+    if(mSensor==System::DEEP_MONOCULAR)
         return;
 
     // Create "visual odometry" MapPoints
@@ -1008,10 +1020,13 @@ bool Tracking::TrackLocalMap()
     mnMatchesInliers = 0;
 
     // Update MapPoints Statistics
+    std::cout << "mCurrentFrame.N: " << mCurrentFrame.N << std::endl;
+    int cntr = 0;
     for(int i=0; i<mCurrentFrame.N; i++)
     {
         if(mCurrentFrame.mvpMapPoints[i])
         {
+            cntr++;
             if(!mCurrentFrame.mvbOutlier[i])
             {
                 mCurrentFrame.mvpMapPoints[i]->IncreaseFound();
@@ -1028,13 +1043,16 @@ bool Tracking::TrackLocalMap()
 
         }
     }
-
+    std::cout << "  IndexCntr: " << cntr << std::endl;
+    std::cout << "  mnMatchesInliers: " << mnMatchesInliers << std::endl;
+    std::cout << "  mCurrentFrame.mnId: " << mCurrentFrame.mnId<< " < Ref: " << mnLastRelocFrameId+mMaxFrames << std::endl;
     // Decide if the tracking was succesful
     // More restrictive if there was a relocalization recently
     if(mCurrentFrame.mnId<mnLastRelocFrameId+mMaxFrames && mnMatchesInliers<50)
         return false;
 
-    if(mnMatchesInliers<30)
+    // if(mnMatchesInliers<30)
+    if(mnMatchesInliers<20)
         return false;
     else
         return true;
@@ -1061,6 +1079,7 @@ bool Tracking::NeedNewKeyFrame()
     if(nKFs<=2)
         nMinObs=2;
     int nRefMatches = mpReferenceKF->TrackedMapPoints(nMinObs);
+    std::cout << "  TrackedRefKF MapPoints: "<< nRefMatches << std::endl;
 
     // Local Mapping accept keyframes?
     bool bLocalMappingIdle = mpLocalMapper->AcceptKeyFrames();
@@ -1068,7 +1087,7 @@ bool Tracking::NeedNewKeyFrame()
     // Check how many "close" points are being tracked and how many could be potentially created.
     int nNonTrackedClose = 0;
     int nTrackedClose= 0;
-    if(mSensor!=System::MONOCULAR && mSensor!=System::MONOCULAR_DEPTH)
+    if(mSensor!=System::MONOCULAR && mSensor!=System::DEEP_MONOCULAR)
     {
         for(int i =0; i<mCurrentFrame.N; i++)
         {
@@ -1080,7 +1099,7 @@ bool Tracking::NeedNewKeyFrame()
                     nNonTrackedClose++;
             }
         }
-    }else if(mSensor==System::MONOCULAR_DEPTH){
+    }else if(mSensor==System::DEEP_MONOCULAR){
         //TBD: Decide what to do.
         for(int i =0; i<mCurrentFrame.N; i++)
         {
@@ -1103,36 +1122,50 @@ bool Tracking::NeedNewKeyFrame()
 
     if(mSensor==System::MONOCULAR)
         thRefRatio = 0.9f;
+    // if(mSensor==System::MONOCULAR)
+    //     thRefRatio = 0.75f;
     
     //TBD: Decide what to do with this.
-    if(mSensor==System::MONOCULAR_DEPTH)
-        thRefRatio = 0.9f;
+    // if(mSensor==System::DEEP_MONOCULAR)
+    //     thRefRatio = 0.9f;
+    if(mSensor==System::DEEP_MONOCULAR)
+        thRefRatio = 0.75f;
 
+    //Update Idle Boolean to get a better idea
+    bLocalMappingIdle = mpLocalMapper->AcceptKeyFrames();
     // Condition 1a: More than "MaxFrames" have passed from last keyframe insertion
     const bool c1a = mCurrentFrame.mnId>=mnLastKeyFrameId+mMaxFrames;
     // Condition 1b: More than "MinFrames" have passed and Local Mapping is idle
     const bool c1b = (mCurrentFrame.mnId>=mnLastKeyFrameId+mMinFrames && bLocalMappingIdle);
     //Condition 1c: tracking is weak
     //TBD: Decide what to do with this.
-    const bool c1c =  (mSensor!=System::MONOCULAR && mSensor!=System::MONOCULAR_DEPTH) && (mnMatchesInliers<nRefMatches*0.25 || bNeedToInsertClose) ;
+    const bool c1c =  (mSensor!=System::MONOCULAR && mSensor!=System::DEEP_MONOCULAR) && (mnMatchesInliers<nRefMatches*0.25 || bNeedToInsertClose) ;
+    // const bool c1c =  (mnMatchesInliers<nRefMatches*0.25 || bNeedToInsertClose) ;
+    // const bool c1c =  (mnMatchesInliers<nRefMatches*(thRefRatio/3.0) || bNeedToInsertClose) ;
     // Condition 2: Few tracked points compared to reference keyframe. Lots of visual odometry compared to map matches.
-    const bool c2 = ((mnMatchesInliers<nRefMatches*thRefRatio|| bNeedToInsertClose) && mnMatchesInliers>15);
-
-    if((c1a||c1b||c1c)&&c2)
+    const bool c2 = ((mnMatchesInliers <= nRefMatches*thRefRatio|| bNeedToInsertClose) && mnMatchesInliers>15);
+    const bool c2b = false;//(mnMatchesInliers < 35);
+    std::cout << "      Matches Ref-KF: " << mnMatchesInliers << " < nRefMatches*thRefRatio " << (nRefMatches*thRefRatio) << std::endl;
+    // if((c1a||c1b||c1c) || c2)
+    if((c1a||c1b||c1c)&&(c2 || c2b))
     {
         // If the mapping accepts keyframes, insert keyframe.
         // Otherwise send a signal to interrupt BA
         if(bLocalMappingIdle)
         {
+            std::cout << "      cp5, "<< std::endl;
             return true;
         }
         else
         {
             mpLocalMapper->InterruptBA();
+            std::cout << "      cp6, " << std::endl;
+
             //TBD: Decide what to do with this.
-            if(mSensor!=System::MONOCULAR)// && mSensor != System::MONOCULAR_DEPTH)
+            if( true)
+            // if( mSensor!=System::MONOCULAR)// && mSensor != System::DEEP_MONOCULAR)
             {
-                std::cout << "HERE COULD BE A PROBLEM" << std::endl;
+                std::cout << "Trying to insert Keyframe into Local Map Queue at: "<< mpLocalMapper->KeyframesInQueue() << std::endl;
                 if(mpLocalMapper->KeyframesInQueue()<3)
                     return true;
                 else
@@ -1157,8 +1190,8 @@ void Tracking::CreateNewKeyFrame()
     mCurrentFrame.mpReferenceKF = pKF;
 
     bool isNotMono = mSensor!=System::MONOCULAR;
-    bool isNotMonoDepth = (mSensor != System::MONOCULAR_DEPTH);
-    bool isRealMonoDepth = ((mSensor == System::MONOCULAR_DEPTH) && (mCurrentFrame.mpORBextractorRight != static_cast<ORBextractor*>(NULL)));
+    bool isNotMonoDepth = (mSensor != System::DEEP_MONOCULAR);
+    bool isRealMonoDepth = ((mSensor == System::DEEP_MONOCULAR) && (mCurrentFrame.mpORBextractorRight != static_cast<ORBextractor*>(NULL)));
 
     if(isNotMono && (isNotMonoDepth || isRealMonoDepth) )
     {

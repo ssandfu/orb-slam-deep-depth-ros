@@ -17,17 +17,50 @@ int main(int argc, char **argv)
 
     node.Init();
 
-    ros::spin();
+    ros::MultiThreadedSpinner spinner(4);
+
+    while(ros::ok){
+      node.checkIsLocalMapIdle();
+      node.publishHeartBeat();
+      spinner.spin();
+    }
+
+    // ros::spin();
 
     ros::shutdown();
 
     return 0;
 }
 
+void MonoNode::checkIsLocalMapIdle(){
+  // publish_heartbeat_map_idle = orb_slam_->mpTracker->canPublishHeartbeat();
+  publish_heartbeat_map_idle = orb_slam_->mpLocalMapper->AcceptKeyFrames();
+}
+
+void MonoNode::publishHeartBeat () {
+  //publish the heartbeat
+
+  if (publish_heartbeat_map_idle){
+    orb_slam_deep_depth_ros::heartbeat s_msg;
+    s_msg.header.stamp = ros::Time::now();
+    s_msg.mono_beat = true;
+    s_msg.depth_beat = true;
+    heartbeat_publisher_.publish(s_msg);    
+  }
+  // else{
+  //   ROS_WARN("Heartbeat can not be published.");
+  // }
+
+}
+
 
 MonoNode::MonoNode (ORB_SLAM2::System::eSensor sensor, ros::NodeHandle &node_handle, image_transport::ImageTransport &image_transport) : Node (sensor, node_handle, image_transport) {
-  image_subscriber = image_transport.subscribe ("/camera/image_raw", 1, &MonoNode::ImageCallback, this);
+  image_subscriber = image_transport.subscribe ("/camera/image_raw", 3, &MonoNode::ImageCallback, this);
   camera_info_topic_ = "/camera/camera_info";
+  heartbeat_publisher_ = node_handle.advertise<orb_slam_deep_depth_ros::heartbeat>("/DeepMono/heartbeat", 1000);
+
+  publish_heartbeat_map_idle = true;
+
 }
 
 

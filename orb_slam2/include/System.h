@@ -55,7 +55,7 @@ public:
         MONOCULAR=0,
         STEREO=1,
         RGBD=2,
-        MONOCULAR_DEPTH=3
+        DEEP_MONOCULAR=3
     };
 
 public:
@@ -80,6 +80,13 @@ public:
     // Returns the camera pose (empty if tracking fails).
     void TrackMonocular(const cv::Mat &im, const double &timestamp);
 
+
+    // Process the given monocular frame
+    // Input images: RGB (CV_8UC3) or grayscale (CV_8U). RGB is converted to grayscale.
+    // Stores the provided image in way that the running enhancement can be applied later.
+    void TrackDeepMono(const cv::Mat &im, const double &timestamp, const bool isEnhanced);
+    void TrackDeepDepth(const cv::Mat &im, const cv::Mat &depth, const double &timestamp);
+
     // Process the given monocular frame, while also setting the system up to process aperiodic depth information
     // Input images: RGB (CV_8UC3) or grayscale (CV_8U). RGB is converted to grayscale.
     // Returns the camera pose (empty if tracking fails).
@@ -95,6 +102,8 @@ public:
 
     // Returns true if Global Bundle Adjustment is running
     bool isRunningGBA();
+
+    void request_and_wait_for_local_mapper_to_stop();
 
     // Reset the system (clear map)
     void Reset();
@@ -176,9 +185,10 @@ private:
     // Map structure that stores the pointers to all KeyFrames and MapPoints.
     Map* mpMap;
 
+public:
     // Local Mapper. It manages the local map and performs local bundle adjustment.
     LocalMapping* mpLocalMapper;
-
+private:
     // Loop Closer. It searches loops with every new keyframe. If there is a loop it performs
     // a pose graph optimization and full bundle adjustment (in a new thread) afterwards.
     LoopClosing* mpLoopCloser;
@@ -207,6 +217,11 @@ private:
 
     // Current position
     cv::Mat current_position_;
+
+    // Current Frame to be enhanced
+    double last_enhanced_timestamp_;
+    const double precision_enhanced_timestamp = 0.005;
+    bool timestamps_match (double timestamp1, double timestamp2);
 
 public:
     //For MonoDepth Keyframe enhancement
