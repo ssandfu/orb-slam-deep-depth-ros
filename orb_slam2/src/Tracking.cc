@@ -442,7 +442,7 @@ void Tracking::Track()
         {
             if(bOK){
                 bOK = TrackLocalMap();
-                std::cout << "  Local Map Tracking: " << bOK << std::endl;
+                // std::cout << "  Local Map Tracking: " << bOK << std::endl;
             }
         }
         else
@@ -452,7 +452,7 @@ void Tracking::Track()
             // the camera we will use the local map again.
             if(bOK && !mbVO){
                 bOK = TrackLocalMap();
-                std::cout << "  Local Map Tracking with !mbVO check: " << bOK << std::endl;
+                // std::cout << "  Local Map Tracking with !mbVO check: " << bOK << std::endl;
             }
         }
 
@@ -464,7 +464,7 @@ void Tracking::Track()
         // Update drawer
         mpFrameDrawer->Update(this);
         std::cout << "Tracking State = " << bOK << std::endl;
-        std::cout << "  Local Map Idle = " << mpLocalMapper->AcceptKeyFrames() << std::endl;
+        std::cout << "Local Map Idle = " << mpLocalMapper->AcceptKeyFrames() << std::endl;
 
         // If tracking were good, check if we insert a keyframe
         if(bOK)
@@ -1020,7 +1020,7 @@ bool Tracking::TrackLocalMap()
     mnMatchesInliers = 0;
 
     // Update MapPoints Statistics
-    std::cout << "mCurrentFrame.N: " << mCurrentFrame.N << std::endl;
+    //std::cout << "mCurrentFrame.N: " << mCurrentFrame.N << std::endl;
     int cntr = 0;
     for(int i=0; i<mCurrentFrame.N; i++)
     {
@@ -1043,9 +1043,12 @@ bool Tracking::TrackLocalMap()
 
         }
     }
+    /*
     std::cout << "  IndexCntr: " << cntr << std::endl;
     std::cout << "  mnMatchesInliers: " << mnMatchesInliers << std::endl;
     std::cout << "  mCurrentFrame.mnId: " << mCurrentFrame.mnId<< " < Ref: " << mnLastRelocFrameId+mMaxFrames << std::endl;
+    */
+
     // Decide if the tracking was succesful
     // More restrictive if there was a relocalization recently
     if(mCurrentFrame.mnId<mnLastRelocFrameId+mMaxFrames && mnMatchesInliers<50)
@@ -1079,7 +1082,7 @@ bool Tracking::NeedNewKeyFrame()
     if(nKFs<=2)
         nMinObs=2;
     int nRefMatches = mpReferenceKF->TrackedMapPoints(nMinObs);
-    std::cout << "  TrackedRefKF MapPoints: "<< nRefMatches << std::endl;
+    std::cout << "TrackedRefKF MapPoints: "<< nRefMatches << std::endl;
 
     // Local Mapping accept keyframes?
     bool bLocalMappingIdle = mpLocalMapper->AcceptKeyFrames();
@@ -1145,7 +1148,7 @@ bool Tracking::NeedNewKeyFrame()
     // Condition 2: Few tracked points compared to reference keyframe. Lots of visual odometry compared to map matches.
     const bool c2 = ((mnMatchesInliers <= nRefMatches*thRefRatio|| bNeedToInsertClose) && mnMatchesInliers>15);
     const bool c2b = false;//(mnMatchesInliers < 35);
-    std::cout << "      Matches Ref-KF: " << mnMatchesInliers << " < nRefMatches*thRefRatio " << (nRefMatches*thRefRatio) << std::endl;
+    // std::cout << "Matches Ref-KF: " << mnMatchesInliers << " < nRefMatches*thRefRatio " << (nRefMatches*thRefRatio) << std::endl;
     // if((c1a||c1b||c1c) || c2)
     if((c1a||c1b||c1c)&&(c2 || c2b))
     {
@@ -1153,13 +1156,13 @@ bool Tracking::NeedNewKeyFrame()
         // Otherwise send a signal to interrupt BA
         if(bLocalMappingIdle)
         {
-            std::cout << "      cp5, "<< std::endl;
+            // std::cout << "      cp5, "<< std::endl;
             return true;
         }
         else
         {
             mpLocalMapper->InterruptBA();
-            std::cout << "      cp6, " << std::endl;
+            // std::cout << "      cp6, " << std::endl;
 
             //TBD: Decide what to do with this.
             if( true)

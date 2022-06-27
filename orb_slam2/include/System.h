@@ -37,6 +37,7 @@
 #include "KeyFrameDatabase.h"
 #include "ORBVocabulary.h"
 
+#include "KaskadeOptimizer.hpp"
 namespace ORB_SLAM2
 {
 class FrameDrawer;
@@ -44,6 +45,7 @@ class Map;
 class Tracking;
 class LocalMapping;
 class LoopClosing;
+class KaskadeOptimizer;
 
 struct ORBParameters;
 
@@ -188,6 +190,9 @@ private:
 public:
     // Local Mapper. It manages the local map and performs local bundle adjustment.
     LocalMapping* mpLocalMapper;
+
+    //Kaskade Optimizer used for the optimization of the enhanced frames retroactively
+    KaskadeOptimizer* mpKaskadeOptimizer;
 private:
     // Loop Closer. It searches loops with every new keyframe. If there is a loop it performs
     // a pose graph optimization and full bundle adjustment (in a new thread) afterwards.

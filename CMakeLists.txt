@@ -128,6 +128,9 @@ orb_slam2/src/Frame.cc
 orb_slam2/src/KeyFrameDatabase.cc
 orb_slam2/src/Sim3Solver.cc
 orb_slam2/src/Initializer.cc
+
+orb_slam2/src/KaskadeOptimizer.cc
+orb_slam2/src/Trajectory.cc
 )
 add_dependencies (${PROJECT_NAME} g2o DBoW2)
 

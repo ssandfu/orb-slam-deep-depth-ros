@@ -19,11 +19,13 @@ int main(int argc, char **argv)
 
     ros::MultiThreadedSpinner spinner(4);
 
-    while(ros::ok){
-      node.checkIsLocalMapIdle();
-      node.publishHeartBeat();
-      spinner.spin();
-    }
+    spinner.spin();
+
+    // while(ros::ok){
+    //   node.checkIsLocalMapIdle();
+    //   node.publishHeartBeat();
+    //   spinner.spin();
+    // }
 
     // ros::spin();
 

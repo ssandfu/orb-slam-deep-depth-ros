@@ -25,7 +25,9 @@ int main(int argc, char **argv)
 
     node.Init();
 
-    ros::spin();
+    ros::MultiThreadedSpinner spinner(4);
+    spinner.spin();
+    // ros::spin();
 
     ros::shutdown();
 
@@ -41,7 +43,7 @@ DeepMonoNode::DeepMonoNode (ORB_SLAM2::System::eSensor sensor, ros::NodeHandle &
   network_task_publisher = image_transport::Publisher(image_transport.advertise("/depth_model_task_image", 1));  
   heartbeat_publisher_ = node_handle.advertise<orb_slam_deep_depth_ros::heartbeat>("/DeepMono/heartbeat", 1000);
 
-  publishHeartBeat();
+  // publishHeartBeat();
 
   node_handle_.getParam(name_of_node_ + "/nKFEnhance", nKFEnhanced);
   std::cout << "KF Enhanced set to: " << nKFEnhanced << std::endl;
@@ -58,20 +60,20 @@ DeepMonoNode::DeepMonoNode (ORB_SLAM2::System::eSensor sensor, ros::NodeHandle &
 DeepMonoNode::~DeepMonoNode () {
 }
 
-void DeepMonoNode::publishHeartBeat () {
-  //publish the heartbeat
+// void DeepMonoNode::publishHeartBeat () {
+//   //publish the heartbeat
 
-  if (publish_heartbeat_mono & publish_heartbeat_depth){
-    orb_slam_deep_depth_ros::heartbeat s_msg;
-    s_msg.header.stamp = ros::Time::now();
-    s_msg.mono_beat = true;
-    s_msg.depth_beat = false;
-    heartbeat_publisher_.publish(s_msg);    
-  }else{
-    ROS_WARN("Heartbeat can not be published.");
-  }
+//   if (publish_heartbeat_mono & publish_heartbeat_depth){
+//     orb_slam_deep_depth_ros::heartbeat s_msg;
+//     s_msg.header.stamp = ros::Time::now();
+//     s_msg.mono_beat = true;
+//     s_msg.depth_beat = false;
+//     heartbeat_publisher_.publish(s_msg);    
+//   }else{
+//     ROS_WARN("Heartbeat can not be published.");
+//   }
 
-}
+// }
 
 void DeepMonoNode::ImageCallback_Mono (const sensor_msgs::ImageConstPtr& msgRGB) {
   static int frameCounter = 0;
@@ -90,16 +92,17 @@ void DeepMonoNode::ImageCallback_Mono (const sensor_msgs::ImageConstPtr& msgRGB)
   bool isEnhanced = (frameCounter++ % nStereoEnhanced == 0);
 
   orb_slam_->TrackDeepMono(cv_ptrRGB->image, cv_ptrRGB->header.stamp.toSec(), isEnhanced);
-  std::cout << "Monocular Image was grabbed at: " << current_frame_time_.toSec() << std::endl;
+  // std::cout << "Monocular Image was grabbed at: " << current_frame_time_.toSec() << std::endl;
   
   if (isEnhanced) {
     network_task_publisher.publish(msgRGB);
+    std::cout << "Monocular Image was published at: " << current_frame_time_.toSec() << " for Depth estimation." << std::endl;
     cv_RBG_Matrix_enhancement = (cv_ptrRGB->image).clone();
   }
   Update();
 
-  publish_heartbeat_mono = true;
-  publishHeartBeat();
+  // publish_heartbeat_mono = true;
+  // publishHeartBeat();
 }
 
 void DeepMonoNode::DeepDepthCallback (const sensor_msgs::ImageConstPtr& msgRGB) {
@@ -116,8 +119,8 @@ void DeepMonoNode::DeepDepthCallback (const sensor_msgs::ImageConstPtr& msgRGB) 
   ROS_INFO("Depth image was grabbed at: %f", cv_ptrDepth->header.stamp.toSec());
   orb_slam_->TrackDeepDepth(cv_RBG_Matrix_enhancement, cv_ptrDepth->image, cv_ptrDepth->header.stamp.toSec());
   
-  publish_heartbeat_depth = true;
-  publishHeartBeat();
+  // publish_heartbeat_depth = true;
+  // publishHeartBeat();
 }
 
 

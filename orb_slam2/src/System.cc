@@ -118,6 +118,12 @@ System::System(const string strVocFile, const eSensor sensor, ORBParameters& par
     mpLoopCloser = new LoopClosing(mpMap, mpKeyFrameDatabase, mpVocabulary, bFixScale);
     mptLoopClosing = new thread(&ORB_SLAM2::LoopClosing::Run, mpLoopCloser);
 
+    //Initialize the KaskadeOptimizer (thread and launch: TBD)
+    auto pVoc = mpVocabulary;
+    mpKaskadeOptimizer = new KaskadeOptimizer(pVoc, parameters.thDepth, bFixScale);
+    
+    // mptKaskadeOptimizer = new thread(&KaskadeOptimizer::Run, mpKaskadeOptimizer);
+
     //Set pointers between threads
     mpTracker->SetLocalMapper(mpLocalMapper);
     mpTracker->SetLoopClosing(mpLoopCloser);
@@ -300,6 +306,14 @@ void System::TrackDeepMono(const cv::Mat &im, const double &timestamp, const boo
     TrackMonocular(im, timestamp);
     mSensor = mSensor_tmp;
 
+    bool isPoseEmpty = mpTracker -> mCurrentFrame.mTcw.empty();
+    if(!isPoseEmpty){
+        auto frameToBeAdded = Frame(mpTracker -> mCurrentFrame);
+        std::cout << "Global Map MapPoints: " << mpMap->MapPointsInMap() << std::endl;
+        std::cout << "Frame MapPoints: " << frameToBeAdded.mvpMapPoints.size() << std::endl;
+        
+        mpKaskadeOptimizer -> AddFrame(frameToBeAdded);//, refPoses);
+    }
     //Check if is enhanced and update the current image accordingly
     if(isEnhanced){
         last_enhanced_timestamp_ = mpTracker->mCurrentFrame.mTimeStamp;
@@ -311,6 +325,12 @@ void System::TrackDeepDepth(const cv::Mat &im, const cv::Mat &depth, const doubl
     bool matching_timestamps = timestamps_match(timestamp, last_enhanced_timestamp_);
     //std::cout << "Matching timestamps: " << matching_timestamps << "    Diff:" << timestamp -  last_enhanced_timestamp_ << std::endl;
     if(matching_timestamps){
+        std::cout << "Number of KeyFrames: " << mpKaskadeOptimizer -> GetNumKeyFrames() << std::endl;
+        std::cout << "Number of MapPoints: " << mpKaskadeOptimizer -> GetNumMapPoints() << std::endl;
+        mpKaskadeOptimizer -> Optimize();
+        // std::cout << "Optimized" << std::endl;
+        mpKaskadeOptimizer -> Reset();
+        // std::cout << "Kaskade Optimizer reset." << std::endl;
 
     }
 }
