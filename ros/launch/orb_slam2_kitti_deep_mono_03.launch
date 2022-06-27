@@ -23,14 +23,15 @@
     <!-- <arg name="camera_baseline" default="525.525" />  -->
 
   <!-- "Standard Calibration" from KITTI VO benchmark-->
-    <arg name="focal_length_x" default="718.8560"/>
-    <arg name="focal_length_y" default="718.8560"/> 
-    <arg name="center_point_x" default="607.1928"/> 
-    <arg name="center_point_y" default="185.2157"/> 
-    <arg name="camera_sensor_distance" default="0.539" />
-  <!-- focal_length * camera_sensor_distance -->
-    <arg name="camera_baseline" default="386.1448" />
-
+  <!-- camera_baseline = focal_length * camera_sensor_distance -->
+     <arg name="focal_length_x" default="721.5377"/>
+    <arg name="focal_length_y" default="721.5377"/> 
+    <arg name="center_point_x" default="609.5593"/> 
+    <arg name="center_point_y" default="172.854"/> 
+    <arg name="camera_sensor_distance" default="0.539" /> 
+    <arg name="camera_baseline" default="388.9089" />  
+    <!--<arg name="camera_sensor_distance" default="0.539" /> -->
+    <!-- <arg name="camera_baseline" default="0.539" />-->
   <node name="orb_slam2_deep_mono" pkg="orb_slam_deep_depth_ros"
       type="orb_slam2_deep_mono" output="screen">
 
