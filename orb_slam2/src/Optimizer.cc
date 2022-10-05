@@ -49,8 +49,11 @@ void Optimizer::GlobalBundleAdjustemnt(Map* pMap, int nIterations, bool* pbStopF
 void Optimizer::BundleAdjustment(const vector<KeyFrame *> &vpKFs, const vector<MapPoint *> &vpMP,
                                  int nIterations, bool* pbStopFlag, const unsigned long nLoopKF, const bool bRobust)
 {
+    std::cout << "BA called ";
     vector<bool> vbNotIncludedMP;
     vbNotIncludedMP.resize(vpMP.size());
+
+    std::cout << "BA Debug1 ";
 
     g2o::SparseOptimizer optimizer;
     g2o::BlockSolver_6_3::LinearSolverType * linearSolver;
@@ -66,7 +69,7 @@ void Optimizer::BundleAdjustment(const vector<KeyFrame *> &vpKFs, const vector<M
         optimizer.setForceStopFlag(pbStopFlag);
 
     long unsigned int maxKFid = 0;
-
+    std::cout << "BA Debug2 ";
     // Set KeyFrame vertices
     for(size_t i=0; i<vpKFs.size(); i++)
     {
@@ -81,7 +84,7 @@ void Optimizer::BundleAdjustment(const vector<KeyFrame *> &vpKFs, const vector<M
         if(pKF->mnId>maxKFid)
             maxKFid=pKF->mnId;
     }
-
+    std::cout << "BA Debug3 ";
     const float thHuber2D = sqrt(5.99);
     const float thHuber3D = sqrt(7.815);
 
@@ -97,7 +100,7 @@ void Optimizer::BundleAdjustment(const vector<KeyFrame *> &vpKFs, const vector<M
         vPoint->setId(id);
         vPoint->setMarginalized(true);
         optimizer.addVertex(vPoint);
-
+        std::cout << "BA Loop" << i << " ";
        const map<KeyFrame*,size_t> observations = pMP->GetObservations();
 
         int nEdges = 0;
@@ -183,9 +186,13 @@ void Optimizer::BundleAdjustment(const vector<KeyFrame *> &vpKFs, const vector<M
         }
     }
 
+    std::cout << "BA Debug before optimize";
+
     // Optimize!
     optimizer.initializeOptimization();
     optimizer.optimize(nIterations);
+
+    std::cout << "BA Debug after optimize" <<std::endl;
 
     // Recover optimized data
 
@@ -779,8 +786,10 @@ void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool* pbStopFlag, Map* pMap
 
 
 void Optimizer::OptimizeEssentialGraph(Map* pMap, KeyFrame* pLoopKF, KeyFrame* pCurKF,
-                                       const LoopClosing::KeyFrameAndPose &NonCorrectedSim3,
-                                       const LoopClosing::KeyFrameAndPose &CorrectedSim3,
+                                       const KeyFrameAndPose &NonCorrectedSim3,
+                                       const KeyFrameAndPose &CorrectedSim3,
+                                    //    const LoopClosing::KeyFrameAndPose &NonCorrectedSim3,
+                                    //    const LoopClosing::KeyFrameAndPose &CorrectedSim3,
                                        const map<KeyFrame *, set<KeyFrame *> > &LoopConnections, const bool &bFixScale)
 {
     // Setup optimizer

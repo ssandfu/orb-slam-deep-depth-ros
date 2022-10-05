@@ -51,9 +51,9 @@ DeepMonoNode::DeepMonoNode (ORB_SLAM2::System::eSensor sensor, ros::NodeHandle &
   std::cout << "nStereoEnhanced set to: " << nStereoEnhanced << std::endl;
   ROS_WARN("CAUTION: the parameter nKFEnhanced and nStereoEnhanced have no effect with the current implementation.");
 
-  publish_heartbeat_depth = true;
-  publish_heartbeat_mono = true;
-
+  // publish_heartbeat_depth = true;
+  // publish_heartbeat_mono = true;
+  start_time_ = ros::Time::now().toSec();
 }
 
 
@@ -96,7 +96,7 @@ void DeepMonoNode::ImageCallback_Mono (const sensor_msgs::ImageConstPtr& msgRGB)
   
   if (isEnhanced) {
     network_task_publisher.publish(msgRGB);
-    std::cout << "Monocular Image was published at: " << current_frame_time_.toSec() << " for Depth estimation." << std::endl;
+    std::cout << "Monocular Image was published at: " << current_frame_time_.toSec() - start_time_ << " for Depth estimation." << std::endl;
     cv_RBG_Matrix_enhancement = (cv_ptrRGB->image).clone();
   }
   Update();
@@ -116,7 +116,7 @@ void DeepMonoNode::DeepDepthCallback (const sensor_msgs::ImageConstPtr& msgRGB) 
       ROS_ERROR("cv_bridge exception: %s", e.what());
       return;
   }
-  ROS_INFO("Depth image was grabbed at: %f", cv_ptrDepth->header.stamp.toSec());
+  ROS_INFO("Depth image was grabbed at: %f", cv_ptrDepth->header.stamp.toSec() - start_time_);
   orb_slam_->TrackDeepDepth(cv_RBG_Matrix_enhancement, cv_ptrDepth->image, cv_ptrDepth->header.stamp.toSec());
   
   // publish_heartbeat_depth = true;

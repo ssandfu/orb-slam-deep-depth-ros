@@ -17,6 +17,7 @@
 * You should have received a copy of the GNU General Public License
 * along with ORB-SLAM2. If not, see <http://www.gnu.org/licenses/>.
 */
+// #pragma once
 
 #ifndef OPTIMIZER_H
 #define OPTIMIZER_H
@@ -31,12 +32,16 @@
 
 namespace ORB_SLAM2
 {
-
-class LoopClosing;
-
+// class LoopClosing;
+// using KeyFrameAndPose = typename LoopClosing::KeyFrameAndPose;
 class Optimizer
 {
 public:
+
+    //Workaround for problems with includes (From LoopClosing.h line 49)
+    typedef map<KeyFrame*,g2o::Sim3,std::less<KeyFrame*>,
+        Eigen::aligned_allocator<std::pair<KeyFrame* const, g2o::Sim3> > > KeyFrameAndPose;
+
     void static BundleAdjustment(const std::vector<KeyFrame*> &vpKF, const std::vector<MapPoint*> &vpMP,
                                  int nIterations = 5, bool *pbStopFlag=NULL, const unsigned long nLoopKF=0,
                                  const bool bRobust = true);
@@ -47,10 +52,12 @@ public:
 
     // if bFixScale is true, 6DoF optimization (stereo,rgbd), 7DoF otherwise (mono)
     void static OptimizeEssentialGraph(Map* pMap, KeyFrame* pLoopKF, KeyFrame* pCurKF,
-                                       const LoopClosing::KeyFrameAndPose &NonCorrectedSim3,
-                                       const LoopClosing::KeyFrameAndPose &CorrectedSim3,
-                                       const map<KeyFrame *, set<KeyFrame *> > &LoopConnections,
-                                       const bool &bFixScale);
+                                        const KeyFrameAndPose &NonCorrectedSim3,
+                                        const KeyFrameAndPose &CorrectedSim3,
+                                        // const LoopClosing::KeyFrameAndPose &NonCorrectedSim3,
+                                        // const LoopClosing::KeyFrameAndPose &CorrectedSim3,
+                                        const map<KeyFrame *, set<KeyFrame *> > &LoopConnections,
+                                        const bool &bFixScale);
 
     // if bFixScale is true, optimize SE3 (stereo,rgbd), Sim3 otherwise (mono)
     static int OptimizeSim3(KeyFrame* pKF1, KeyFrame* pKF2, std::vector<MapPoint *> &vpMatches1,

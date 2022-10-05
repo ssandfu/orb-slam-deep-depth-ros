@@ -33,7 +33,7 @@
     <!--<arg name="camera_sensor_distance" default="0.539" /> -->
     <!-- <arg name="camera_baseline" default="0.539" />-->
   <node name="orb_slam2_deep_mono" pkg="orb_slam_deep_depth_ros"
-      type="orb_slam2_deep_mono" output="screen">
+      type="orb_slam2_deep_mono" output="screen" launch-prefix="xterm -e gdb --args">
 
        <!-- <remap from="/camera/image_raw" to="/camera/rgb/image_raw" /> -->
 <!--       <remap from="/camera/rgb/image_raw" to="/kitti/camera_gray_left/image_rect" /> -->
@@ -109,7 +109,13 @@
      <!-- TODO: For testing purposes the corect topic is hardcoded in the script-->
      <!-- <remap from="/image/rgb/image_rect" to="/kitti/camera_color_left/image_rect" /> -->
      <remap from="/kitti/camera_color_left/image_rect" to="/depth_model_task_image" /> 
+  </node>
 
+    <node name="trajectoryEvalNode" pkg="orb_slam_deep_depth_ros" type="trajectoryEvalNode" output="screen">
+     <!-- TODO: For testing purposes the corect topic is hardcoded in the script-->
+     <!-- <remap from="/image/rgb/image_rect" to="/kitti/camera_color_left/image_rect" /> -->
+     <remap from="/pose" to="/orb_slam2_deep_mono/pose" /> 
+     <remap from="/path" to="/kaskade_optimizer/path" /> 
   </node>
 
    <node pkg="tf" type="static_transform_publisher" name="link1_broadcaster" args="0 0 0 0 0 0 1 /base_link /camera_left 100" />

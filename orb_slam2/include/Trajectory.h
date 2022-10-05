@@ -3,10 +3,12 @@
 
 #include "KeyFrame.h"
 #include <vector>
+#include<opencv2/core/core.hpp>
 
 
 namespace ORB_SLAM2
 {
+    class KeyFrame;
     struct TrajectoryPoint {
         cv::Mat Pose;
         double TimeStamp;

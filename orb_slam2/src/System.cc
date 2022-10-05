@@ -307,30 +307,81 @@ void System::TrackDeepMono(const cv::Mat &im, const double &timestamp, const boo
     mSensor = mSensor_tmp;
 
     bool isPoseEmpty = mpTracker -> mCurrentFrame.mTcw.empty();
+    Frame frameToBeAdded;
     if(!isPoseEmpty){
-        auto frameToBeAdded = Frame(mpTracker -> mCurrentFrame);
+        frameToBeAdded = Frame(mpTracker -> mCurrentFrame);
         std::cout << "Global Map MapPoints: " << mpMap->MapPointsInMap() << std::endl;
         std::cout << "Frame MapPoints: " << frameToBeAdded.mvpMapPoints.size() << std::endl;
-        
-        mpKaskadeOptimizer -> AddFrame(frameToBeAdded);//, refPoses);
+
+        // bool canAddNewFrame = mpKaskadeOptimizer -> b_canAddNewFrames;
+        // std::cout << "Can add new frame: " << canAddNewFrame << std::endl;
+        // if(canAddNewFrame)
+            mpKaskadeOptimizer -> AddFrame(frameToBeAdded);//, refPoses);
     }
     //Check if is enhanced and update the current image accordingly
-    if(isEnhanced){
+    if(isEnhanced && !isPoseEmpty){
+        const std::lock_guard<std::mutex> lock(mMutexLastEnhancedFrame);
         last_enhanced_timestamp_ = mpTracker->mCurrentFrame.mTimeStamp;
+        last_enhanced_frame_ = new Frame(frameToBeAdded);
+        //mpKaskadeOptimizer -> b_canAddNewFrames = true;
+    }else if (isEnhanced && isPoseEmpty){
+        std::cout << "Pose is empty, cannot add new frame" << std::endl;
+        last_enhanced_frame_ = nullptr;
+        last_enhanced_timestamp_ = -1;
     }
+    
+    // else{
+    //     last_enhanced_timestamp_ = -1;
+    //     last_enhanced_frame_ = new Frame();
+    // }
 
 }
 
 void System::TrackDeepDepth(const cv::Mat &im, const cv::Mat &depth, const double &timestamp){
-    bool matching_timestamps = timestamps_match(timestamp, last_enhanced_timestamp_);
+    std::cout << "TrackDeepDepth: called" << std::endl;
+    bool matching_timestamps = true; timestamps_match(timestamp, last_enhanced_timestamp_);
     //std::cout << "Matching timestamps: " << matching_timestamps << "    Diff:" << timestamp -  last_enhanced_timestamp_ << std::endl;
     if(matching_timestamps){
-        std::cout << "Number of KeyFrames: " << mpKaskadeOptimizer -> GetNumKeyFrames() << std::endl;
-        std::cout << "Number of MapPoints: " << mpKaskadeOptimizer -> GetNumMapPoints() << std::endl;
-        mpKaskadeOptimizer -> Optimize();
-        // std::cout << "Optimized" << std::endl;
-        mpKaskadeOptimizer -> Reset();
-        // std::cout << "Kaskade Optimizer reset." << std::endl;
+        //Create a new frame with the image and the depth information
+
+        mpKaskadeOptimizer -> b_canAddNewFrames = false;
+
+        const std::lock_guard<std::mutex> lock(mMutexLastEnhancedFrame);
+        bool isFrameNull = last_enhanced_frame_ == nullptr;
+        
+        if(isFrameNull){
+            std::cout << "Frame is null" << std::endl;
+            return;
+        }
+        else{
+            
+            Frame frameToBeAdded = Frame(*last_enhanced_frame_);       
+            //Display the number of map points in frameToBeAdded
+            frameToBeAdded.ComputeStereoFromRGBD(depth);
+
+
+            //Destroy mutex lock_guard
+            lock.~lock_guard();
+            //Insert Enhanced Frame into the Kaskade Optimizer
+            //mpKaskadeOptimizer -> AddEnhancedFrame(frameToBeAdded);
+            mpKaskadeOptimizer -> AddFrame(frameToBeAdded);
+
+            // std::cout << "Debug Checkpoint 2" << std::endl;
+
+            std::cout << "Number of KeyFrames: " << mpKaskadeOptimizer -> GetNumKeyFrames() << std::endl;
+            std::cout << "Number of MapPoints: " << mpKaskadeOptimizer -> GetNumMapPoints() << std::endl;
+            
+            // std::cout << "Debug Checkpoint 3" << std::endl;
+
+            
+            mpKaskadeOptimizer -> Optimize();
+            std::cout << "Optimized" << std::endl;
+
+            // std::cout << "Debug Checkpoint 4" << std::endl;
+
+            mpKaskadeOptimizer -> Reset();
+            std::cout << "Kaskade Optimizer reset." << std::endl;
+        }
 
     }
 }

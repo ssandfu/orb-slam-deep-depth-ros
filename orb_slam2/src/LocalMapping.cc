@@ -18,10 +18,13 @@
 * along with ORB-SLAM2. If not, see <http://www.gnu.org/licenses/>.
 */
 
+// #include "LocalMapping.h"
+// #include "LoopClosing.h"
+// #include "ORBmatcher.h"
+// #include "Optimizer.h"
+
 #include "LocalMapping.h"
-#include "LoopClosing.h"
-#include "ORBmatcher.h"
-#include "Optimizer.h"
+
 
 #include<mutex>
 
@@ -76,10 +79,12 @@ void LocalMapping::Run()
 
             if(!CheckNewKeyFrames() && !stopRequested())
             {
+                std::cout << "LocalMapping can optimize" <<std::endl;
                 // Local BA
-                if(mpMap->KeyFramesInMap()>2)
+                if(mpMap->KeyFramesInMap()>2){
                     Optimizer::LocalBundleAdjustment(mpCurrentKeyFrame,&mbAbortBA, mpMap);
-
+                    std::cout << "Local Mapping Optimizer done" << std::endl;
+                }
                 // Check redundant local Keyframes
                 KeyFrameCulling();
             }

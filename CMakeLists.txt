@@ -10,6 +10,7 @@ ENDIF()
 find_library(TENSORFLOW_LIB tensorflow HINT $ENV{HOME}/libtensorflow2/lib)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-omit-frame-pointer -fsanitize=address")
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-omit-frame-pointer -fsanitize=address -DCMAKE_BUILD_TYPE=Release -DUSE_PANGOLIN_VIEWER=ON -DUSE_SOCKET_PUBLISHER=OFF")
 set(CMAKE_LINKER_FLAGS "${CMAKE_LINKER_FLAGS} -lasan")
 
 # Check for c++11 support
@@ -186,24 +187,27 @@ target_link_libraries(orb_slam2_deep_mono
 ${LIBS_ROS}
 )
 
-add_executable (${PROJECT_NAME}_pydnet
-src/pydnetNode.cc
-)
-add_dependencies (${PROJECT_NAME}_pydnet ${PROJECT_NAME})
+# add_executable (${PROJECT_NAME}_pydnet
+# src/pydnetNode.cc
+# )
+# add_dependencies (${PROJECT_NAME}_pydnet ${PROJECT_NAME})
 
-target_link_libraries(${PROJECT_NAME}_pydnet
-${LIBS_ROS}
-${TENSORFLOW_LIB}
-)
+# target_link_libraries(${PROJECT_NAME}_pydnet
+# ${LIBS_ROS}
+# ${TENSORFLOW_LIB}
+# )
 
+# install(TARGETS ${PROJECT_NAME}_pydnet
+#   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+#   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+#   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+# )
 catkin_install_python(PROGRAMS nodes/pydnetNode_python
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
-install(TARGETS ${PROJECT_NAME}_pydnet
-  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+catkin_install_python(PROGRAMS nodes/trajectoryEvalNode
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
 install(TARGETS ${PROJECT_NAME}_mono ${PROJECT_NAME}_stereo ${PROJECT_NAME}_rgbd orb_slam2_deep_mono

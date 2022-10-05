@@ -34,7 +34,7 @@ parser.add_argument('--width', dest='width', type=int, default=512, help='width 
 parser.add_argument('--height', dest='height', type=int, default=256, help='height of input images')
 parser.add_argument('--resolution', dest='resolution', type=int, default=1, help='resolution [1:H, 2:Q, 3:E]')
 parser.add_argument('--checkpoint_dir', dest='checkpoint_dir', type=str, 
-        default='/home/stephan//Dokumente/DeepSLAM/ROS-Workspace/catkin_ws/src/orb_slam_deep_depth_ros/nodes/checkpoint/IROS18/pydnet', 
+        default='/home/stephan/Dokumente/DeepSLAM/ROS-Workspace/catkin_ws_WIP/src/orb_slam_deep_depth_ros/nodes/checkpoint/IROS18/pydnet', 
         help='checkpoint directory')
 
 args = parser.parse_args()
@@ -79,7 +79,7 @@ class depth_predictor:
       threads = tf.compat.v1.train.start_queue_runners(sess=self.sess, coord=coordinator)
 
       # RESTORE
-      checkpoint_dir = '/home/stephan//Dokumente/DeepSLAM/ROS-Workspace/catkin_ws/src/orb_slam_deep_depth_ros/nodes/checkpoint/IROS18/pydnet'
+      checkpoint_dir = '/home/stephan/Dokumente/DeepSLAM/ROS-Workspace/catkin_ws_WIP/src/orb_slam_deep_depth_ros/nodes/checkpoint/IROS18/pydnet'
       #self.train_saver.restore(self.sess, args.checkpoint_dir)
       self.train_saver.restore(self.sess, checkpoint_dir)
 
@@ -103,7 +103,7 @@ class depth_predictor:
     input_height = n*64
     input_width = 2*input_height
     #print((input_height, input_width))
-    
+
     #disparities = np.zeros((1, 256, 512), dtype=np.float32)
     img = cv2.resize(cv_image, (input_width, input_height)).astype(np.float32) / 255.
     img = np.expand_dims(img, 0)
@@ -111,15 +111,20 @@ class depth_predictor:
     resolution = 1
     #pred_Disp = self.sess.run(self.model.results[args.resolution-1], feed_dict={self.placeholders['im0']: img})
     pred_Disp = self.sess.run(self.model.results[resolution-1], feed_dict={self.placeholders['im0']: img})
+    print("Image Data Run")
 
     disparities = pred_Disp[0,:,:,0]
     
     depth_mm = focal_length * baseline / disparities #[mm]
     depth_mm = np.minimum(depth_mm, maxDepth * 1e3)
     depth_mm = np.maximum(depth_mm, minDepth * 1e3)
-    
-    
+        
     toPublish = cv2.resize(depth_mm, (orig_width, orig_height), interpolation=cv2.INTER_LINEAR).astype(data_type)
+    
+    delayTime = 0.3 #[s]
+    rospy.sleep(delayTime)
+    print("Warning: The publishing of depth image is delayed by " + str(delayTime) + " seconds!")
+
     try:
       depth_publishable = self.bridge.cv2_to_imgmsg(toPublish, "mono16")
       depth_publishable.header.stamp = oldTimestamp
@@ -149,7 +154,7 @@ def main(args):
   try:
     rospy.spin()
   except KeyboardInterrupt:
-    print("Shutting down")
+    print("Shutting down Depth Prediction Node")
   cv2.destroyAllWindows()
 
 if __name__ == '__main__':

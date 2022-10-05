@@ -30,6 +30,7 @@
 
 
 #include "Tracking.h"
+//#include "KaskadeOptimizer.hpp"
 #include "FrameDrawer.h"
 #include "Map.h"
 #include "LocalMapping.h"
@@ -37,7 +38,10 @@
 #include "KeyFrameDatabase.h"
 #include "ORBVocabulary.h"
 
+#include "Optimizer.h"
 #include "KaskadeOptimizer.hpp"
+#include <mutex>
+#include <atomic>
 namespace ORB_SLAM2
 {
 class FrameDrawer;
@@ -45,7 +49,7 @@ class Map;
 class Tracking;
 class LocalMapping;
 class LoopClosing;
-class KaskadeOptimizer;
+// class KaskadeOptimizer;
 
 struct ORBParameters;
 
@@ -224,9 +228,11 @@ private:
     cv::Mat current_position_;
 
     // Current Frame to be enhanced
+    Frame* last_enhanced_frame_;
     double last_enhanced_timestamp_;
     const double precision_enhanced_timestamp = 0.005;
     bool timestamps_match (double timestamp1, double timestamp2);
+    mutex mMutexLastEnhancedFrame;
 
 public:
     //For MonoDepth Keyframe enhancement

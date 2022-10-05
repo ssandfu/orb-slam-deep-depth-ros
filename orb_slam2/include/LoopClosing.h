@@ -25,7 +25,7 @@
 #include "LocalMapping.h"
 #include "Map.h"
 #include "ORBVocabulary.h"
-#include "Tracking.h"
+// #include "Tracking.h"
 
 #include "KeyFrameDatabase.h"
 

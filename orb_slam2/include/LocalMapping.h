@@ -24,8 +24,13 @@
 #include "KeyFrame.h"
 #include "Map.h"
 #include "LoopClosing.h"
-#include "Tracking.h"
+// #include "Tracking.h"
 #include "KeyFrameDatabase.h"
+
+// #include "LocalMapping.h"
+// #include "LoopClosing.h"
+#include "ORBmatcher.h"
+#include "Optimizer.h"
 
 #include <mutex>
 

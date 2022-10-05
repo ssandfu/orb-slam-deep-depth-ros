@@ -71,6 +71,8 @@ class DeepMonoNode : public Node
 
     cv::Mat cv_RBG_Matrix_enhancement;
 
+    double start_time_;
+
 };
 
 #endif //ORBSLAM2_ROS_MONONODE_H_

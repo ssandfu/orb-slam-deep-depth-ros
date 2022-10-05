@@ -1,0 +1,135 @@
+#!/usr/bin/env python3
+import rospy
+import sys
+from geometry_msgs.msg import PoseStamped
+from nav_msgs.msg import Path
+
+from sensor_msgs.msg import Image
+from cv_bridge import CvBridge, CvBridgeError
+
+import pathlib
+import pandas as pd
+import numpy as np
+from scipy.spatial.transform import Rotation as R
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+pd.options.display.float_format = '{:,.4f}'.format
+pd.set_option('display.max_rows', 10)
+
+class evalParamteters:
+    def __init__(self, sequence=-1, pathBase=None):
+        self.sequence = sequence
+        self.columns=["timestamp", "tx", "ty", "tz", "rx", "ry", "rz", "rw"]
+        self.pathColumn = [["Path", "Pose"]]
+        self.pathColumn.append(self.columns)
+        self.pathColumn = [x for xs in self.pathColumn for x in xs]
+        self.pathPoses = pathBase / pathlib.Path("poses") / pathlib.Path("{:02d}.txt".format(self.sequence))
+        self.pathTimes = pathBase / pathlib.Path("times") / pathlib.Path("{:02d}.txt".format(self.sequence))
+
+class evaluator:
+    def __init__(self, evalParameters):
+        self.evalParameters = evalParameters
+        self.checkParameterValidity(evalParameters)
+
+        df = pd.read_csv(self.evalParameters.pathPoses, sep=" ", header=None)
+        self.poses_gt = self.calc7DoF_KITTI_Grounttruth(df)
+        timeSteps = pd.read_csv(self.evalParameters.pathTimes, sep=" ", header=None)
+        self.poses_gt[self.evalParameters.columns[0]] = timeSteps
+        print(self.poses_gt)
+        self.poseSub = rospy.Subscriber("/pose", PoseStamped, self.poseCallback, queue_size=1)
+        self.poseSub = rospy.Subscriber("/path", Path, self.pathCallback, queue_size=1)
+
+        self.poseDF = pd.DataFrame(columns=self.evalParameters.columns)
+        self.kaskadePoseDF = pd.DataFrame(columns=self.evalParameters.pathColumn)
+        self.kaskadePoseDF = self.kaskadePoseDF.set_index([self.evalParameters.pathColumn[0], self.evalParameters.pathColumn[1]])
+        
+        self.pathKeyCounter = 0
+        
+        self.image_sub = rospy.Subscriber("/kitti/camera_color_left/image_rect",Image, self.frameTimeCallback, queue_size=1)
+        self.imageTimes_ROS = pd.Series(name="timestamps ROS", dtype=float)
+
+
+    def checkParameterValidity(self, param):
+        if(type(param.sequence) != type(9)):
+            raise TypeError("The sequence has to defined as an int in the range [0, 10]")
+        if ( (param.sequence < 0) | (param.sequence > 10) ) :
+            raise ValueError("Only sequences between in the range [0, 10] are supported ")
+
+
+    def kittiPoseTo7DoF(self, entry):
+        rot = R.from_matrix([[entry[0], entry[1], entry[2]],
+                            [entry[4], entry[5], entry[6]],
+                            [entry[8], entry[9], entry[10]]])
+        rot_quat = rot.as_quat()
+        transl = np.array([entry[3], entry[7], entry[11]])
+        ret = pd.Series([np.nan, transl[0], transl[1], transl[2], rot_quat[0], rot_quat[1], rot_quat[2], rot_quat[3]])
+        return ret
+
+
+    def calc7DoF_KITTI_Grounttruth(self, dataframe):
+        df1 = dataframe.apply(self.kittiPoseTo7DoF, axis=1)
+        df1.columns=self.evalParameters.columns
+        return df1
+
+    def stampedPoseData2DataFrameRow(self, data):
+        ts = data.header.stamp.to_sec()
+        tx = data.pose.position.x
+        ty = data.pose.position.y
+        tz = data.pose.position.z
+        rx = data.pose.orientation.x
+        ry = data.pose.orientation.y
+        rz = data.pose.orientation.z
+        rw = data.pose.orientation.w
+        l = [[ts, tx, ty, tz, rx, ry, rz, rw]]
+        newData = pd.DataFrame(l, columns=self.evalParameters.columns)
+        return newData
+        
+
+    def poseCallback(self, stampedPoseData):
+        newData = self.stampedPoseData2DataFrameRow(stampedPoseData)
+        self.poseDF = pd.concat([self.poseDF, newData], ignore_index=True)
+
+    def pathCallback(self, pathData):
+        nPoses = len(pathData.poses)
+        poseNumIndex = [i for i in range(nPoses)]
+        pathIndex = self.pathKeyCounter
+        for i in range(nPoses):
+            poseNDF = pd.DataFrame(columns=self.evalParameters.pathColumn)
+            poseNDF[self.evalParameters.columns] = self.stampedPoseData2DataFrameRow(pathData.poses[i])
+            poseNDF[self.evalParameters.pathColumn[0]] = pathIndex
+            poseNDF[self.evalParameters.pathColumn[1]] = poseNumIndex[i]
+            poseNDF = poseNDF.set_index([self.evalParameters.pathColumn[0], self.evalParameters.pathColumn[1]])
+            self.kaskadePoseDF = pd.concat([self.kaskadePoseDF, poseNDF])
+        self.pathKeyCounter += 1
+    
+    def frameTimeCallback(self, image):
+        self.imageTimes_ROS = pd.concat([self.imageTimes_ROS, pd.Series([image.header.stamp.to_sec()])], ignore_index=True)
+    
+    def saveTrajectories(self, folder):
+        self.poses_gt["timestamps ROS"] = self.imageTimes_ROS
+        self.poses_gt.to_csv(folder / pathlib.Path("groundtruth.csv"))
+        self.poseDF.to_csv(folder / pathlib.Path("loggedResults.csv"))
+        self.kaskadePoseDF.to_csv(folder / pathlib.Path("kaskadeFrames.csv"))
+
+def main(args):
+    sequence = 3
+    pathBase = pathlib.Path("/","home", "stephan","KITTI-Bags-TMP") 
+    parameters = evalParamteters(sequence, pathBase)
+    evaluatorObject = evaluator(parameters)
+    rospy.init_node('trajectory_evaluation', anonymous=True)
+    try:
+        rospy.spin()
+    except KeyboardInterrupt:
+        print("Shutting down Evaluation Node")
+    print(evaluatorObject.poses_gt)
+    print(evaluatorObject.poseDF)
+    print(evaluatorObject.kaskadePoseDF)
+    evaluatorObject.saveTrajectories(pathlib.Path("/home/stephan/KITTI-Local/"))
+#    sns.lineplot(x=evaluatorObject.poses_gt["tx"], y=evaluatorObject.poses_gt["tz"])
+#    sns.lineplot(data=evaluatorObject.poses_gt, x="tx", y="tz")
+#    plt.show()
+
+if __name__ == '__main__':
+    main(sys.argv)
