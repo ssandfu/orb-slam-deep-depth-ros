@@ -42,6 +42,7 @@
 #include "System.h"
 
 #include <mutex>
+#include <atomic>
 
 namespace ORB_SLAM2
 {
@@ -136,6 +137,8 @@ public:
 
     void Reset();
 
+    std::atomic_bool is_Frame_Tracked;
+
 protected:
 
     // Main tracking function. It is independent of the input sensor.
@@ -226,12 +229,14 @@ protected:
     //Current matches in frame
     int mnMatchesInliers;
 
+public:
     //Last Frame, KeyFrame and Relocalisation Info
     KeyFrame* mpLastKeyFrame;
     Frame mLastFrame;
     unsigned int mnLastKeyFrameId;
     unsigned int mnLastRelocFrameId;
 
+protected:
     //Motion Model
     cv::Mat mVelocity;
 

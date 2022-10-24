@@ -4,6 +4,7 @@
 #include <ros/ros.h>
 #include <ros/time.h>
 #include <nav_msgs/Path.h>
+#include <sensor_msgs/PointCloud2.h>
 
 #include <tf2/LinearMath/Matrix3x3.h>
 #include <tf2/LinearMath/Transform.h>
@@ -88,6 +89,9 @@ namespace ORB_SLAM2
 
             bool abortBA;
 
+            //This is a direct copy of the function in Node.cc starting in line 238 to convert the Map in a PointCloud
+            sensor_msgs::PointCloud2 MapPointsToPointCloud (std::vector<ORB_SLAM2::MapPoint*> map_points);
+
         public:
             Map *referenceMap;
             KeyFrameDatabase *keyFrameDatabase;
@@ -96,6 +100,8 @@ namespace ORB_SLAM2
             mutex mMutexMapAcess;
 
             ros::Publisher pub_path;
+            ros::Publisher pub_map;
+
     };
 }
 //#endif // KASKADE_OPT_H

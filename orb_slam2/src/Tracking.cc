@@ -47,7 +47,8 @@ Tracking::Tracking(System *pSys, ORBVocabulary* pVoc, FrameDrawer *pFrameDrawer,
         Map *pMap, KeyFrameDatabase* pKFDB, const int sensor, ORBParameters& parameters):
     mState(NO_IMAGES_YET), mSensor(sensor), mbOnlyTracking(false), mbVO(false), mpORBVocabulary(pVoc),
     mpKeyFrameDB(pKFDB), mpInitializer(static_cast<Initializer*>(NULL)), mpSystem(pSys),
-    mpFrameDrawer(pFrameDrawer), mpMap(pMap), mnLastRelocFrameId(0), mnMinimumKeyFrames(5)
+    mpFrameDrawer(pFrameDrawer), mpMap(pMap), mnLastRelocFrameId(0), mnMinimumKeyFrames(5),
+    is_Frame_Tracked(false)
 {
     //Unpack all the parameters from the parameters struct (this replaces loading in a second configuration file)
     mMaxFrames = parameters.maxFrames;

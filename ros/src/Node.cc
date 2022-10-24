@@ -82,7 +82,7 @@ void Node::Update () {
   }
 
   PublishRenderedImage (orb_slam_->DrawCurrentFrame());
-  //std::cout << "publish_pointcloud_param_: " << publish_pointcloud_param_ <<std::endl;
+  std::cout << "publish_pointcloud_param_: " << publish_pointcloud_param_ <<std::endl;
   if (publish_pointcloud_param_) {
     PublishMapPoints (orb_slam_->GetAllMapPoints());
   }
@@ -94,7 +94,7 @@ void Node::Update () {
 
 void Node::PublishMapPoints (std::vector<ORB_SLAM2::MapPoint*> map_points) {
   sensor_msgs::PointCloud2 cloud = MapPointsToPointCloud (map_points);
-  //std::cout << "Pointscloud Height: " << cloud.height << " Width: " << cloud.width<<std::endl;
+  std::cout << "Pointscloud Height: " << cloud.height << " Width: " << cloud.width<<std::endl;
   map_points_publisher_.publish (cloud);
 }
 

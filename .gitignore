@@ -1,4 +1,9 @@
 orb_slam2/Thirdparty/DBoW2/lib/libDBoW2.so
-orb_slam2/Thirdparty/g2o/lib/libg2o.so 
+orb_slam2/Thirdparty/g2o/lib/libg2o.so
+orb_slam2/Thirdparty/g2o/lib/*
 orb_slam2/lib/liborb_slam_deep_depth_ros.so
 pydnet/src/__pycache__
+.vscode
+html/*
+latex/*
+log/*

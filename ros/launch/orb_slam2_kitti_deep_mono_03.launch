@@ -24,7 +24,7 @@
 
   <!-- "Standard Calibration" from KITTI VO benchmark-->
   <!-- camera_baseline = focal_length * camera_sensor_distance -->
-     <arg name="focal_length_x" default="721.5377"/>
+    <arg name="focal_length_x" default="721.5377"/>
     <arg name="focal_length_y" default="721.5377"/> 
     <arg name="center_point_x" default="609.5593"/> 
     <arg name="center_point_y" default="172.854"/> 
@@ -33,7 +33,7 @@
     <!--<arg name="camera_sensor_distance" default="0.539" /> -->
     <!-- <arg name="camera_baseline" default="0.539" />-->
   <node name="orb_slam2_deep_mono" pkg="orb_slam_deep_depth_ros"
-      type="orb_slam2_deep_mono" output="screen" launch-prefix="xterm -e gdb --args">
+      type="orb_slam2_deep_mono" output="screen" > <!-- launch-prefix="xterm -e gdb - -args"> --> 
 
        <!-- <remap from="/camera/image_raw" to="/camera/rgb/image_raw" /> -->
 <!--       <remap from="/camera/rgb/image_raw" to="/kitti/camera_gray_left/image_rect" /> -->
@@ -119,5 +119,6 @@
   </node>
 
    <node pkg="tf" type="static_transform_publisher" name="link1_broadcaster" args="0 0 0 0 0 0 1 /base_link /camera_left 100" />
-  
+   <node pkg="tf" type="static_transform_publisher" name="KaskadeMapLink_broadcaster" args="0 0 0 0 0 0 1 /map /kaskade_optimizer/map 100" />
+
 </launch>

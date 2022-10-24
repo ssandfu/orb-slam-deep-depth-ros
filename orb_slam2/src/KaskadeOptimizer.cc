@@ -42,6 +42,7 @@ namespace ORB_SLAM2
         trajectory = new Trajectory();
         node_handle_ = ros::NodeHandle("~");
         pub_path = node_handle_.advertise<nav_msgs::Path>("/kaskade_optimizer/path", 1);
+        pub_map = node_handle_.advertise<sensor_msgs::PointCloud2>("/kaskade_optimizer/map", 1);
 
         //Initialize the Local Mapping thread and launch
         bool bMONOLIKE = true; //mSensor==MONOCULAR || mSensor==DEEP_MONOCULAR;
@@ -272,6 +273,12 @@ namespace ORB_SLAM2
         //Publish the path
         pub_path.publish(path);
         std::cout << "Path is published" << std::endl;
+        
+        std::vector<MapPoint*> mapPoints = referenceMap -> GetAllMapPoints();
+        sensor_msgs::PointCloud2 cloud = MapPointsToPointCloud (mapPoints);
+        std::cout << "Kaskade Pointscloud Height: " << cloud.height << " Width: " << cloud.width<<std::endl;
+        pub_map.publish(cloud);
+        
         b_canAddNewFrames = true;
     }
 
@@ -412,5 +419,53 @@ namespace ORB_SLAM2
         return pKF;
     }
 
+//This is a direct copy of the function in Node.cc starting in line 238 to convert the Map in a PointCloud
+sensor_msgs::PointCloud2 KaskadeOptimizer::MapPointsToPointCloud (std::vector<ORB_SLAM2::MapPoint*> map_points) {
+  if (map_points.size() == 0) {
+    std::cout << "Map point vector is empty!" << std::endl;
+  }
+
+  sensor_msgs::PointCloud2 cloud;
+
+  const int num_channels = 3; // x y z
+
+  cloud.header.stamp = ros::Time::now();
+  cloud.header.frame_id = "/kaskade_optimizer/map";//map_frame_id_param_;
+  cloud.height = 1;
+  cloud.width = map_points.size();
+  cloud.is_bigendian = false;
+  cloud.is_dense = true;
+  cloud.point_step = num_channels * sizeof(float);
+  cloud.row_step = cloud.point_step * cloud.width;
+  cloud.fields.resize(num_channels);
+
+  std::string channel_id[] = { "x", "y", "z"};
+  for (int i = 0; i<num_channels; i++) {
+  	cloud.fields[i].name = channel_id[i];
+  	cloud.fields[i].offset = i * sizeof(float);
+  	cloud.fields[i].count = 1;
+  	cloud.fields[i].datatype = sensor_msgs::PointField::FLOAT32;
+  }
+
+  cloud.data.resize(cloud.row_step * cloud.height);
+
+  unsigned char *cloud_data_ptr = &(cloud.data[0]);
+  
+  int min_observations_per_point_ = 2;
+  
+  float data_array[num_channels];
+  for (unsigned int i=0; i<cloud.width; i++) {
+    if (map_points.at(i)->nObs >= min_observations_per_point_) {
+      data_array[0] = map_points.at(i)->GetWorldPos().at<float> (2); //x. Do the transformation by just reading at the position of z instead of x
+      data_array[1] = -1.0* map_points.at(i)->GetWorldPos().at<float> (0); //y. Do the transformation by just reading at the position of x instead of y
+      data_array[2] = -1.0* map_points.at(i)->GetWorldPos().at<float> (1); //z. Do the transformation by just reading at the position of y instead of z
+      //TODO dont hack the transformation but have a central conversion function for MapPointsToPointCloud and TransformFromMat
+
+      memcpy(cloud_data_ptr+(i*cloud.point_step), data_array, num_channels*sizeof(float));
+    }
+  }
+
+  return cloud;
+}
 
 } // namespace ORB_SLAM2

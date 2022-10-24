@@ -306,22 +306,25 @@ void System::TrackDeepMono(const cv::Mat &im, const double &timestamp, const boo
     TrackMonocular(im, timestamp);
     mSensor = mSensor_tmp;
 
-    bool isPoseEmpty = mpTracker -> mCurrentFrame.mTcw.empty();
+    // Frame curFrame = mpTracker -> mCurrentFrame;
+    Frame curFrame = mpTracker -> mLastFrame;
+    bool isPoseEmpty = curFrame.mTcw.empty();
     Frame frameToBeAdded;
     if(!isPoseEmpty){
-        frameToBeAdded = Frame(mpTracker -> mCurrentFrame);
-        std::cout << "Global Map MapPoints: " << mpMap->MapPointsInMap() << std::endl;
-        std::cout << "Frame MapPoints: " << frameToBeAdded.mvpMapPoints.size() << std::endl;
+        frameToBeAdded = Frame(curFrame);
+        //std::cout << "Global Map MapPoints: " << mpMap->MapPointsInMap() << std::endl;
+        //std::cout << "Frame MapPoints: " << frameToBeAdded.mvpMapPoints.size() << std::endl;
 
         // bool canAddNewFrame = mpKaskadeOptimizer -> b_canAddNewFrames;
         // std::cout << "Can add new frame: " << canAddNewFrame << std::endl;
         // if(canAddNewFrame)
-            mpKaskadeOptimizer -> AddFrame(frameToBeAdded);//, refPoses);
+        mpKaskadeOptimizer -> AddFrame(frameToBeAdded);//, refPoses);
     }
+
     //Check if is enhanced and update the current image accordingly
     if(isEnhanced && !isPoseEmpty){
         const std::lock_guard<std::mutex> lock(mMutexLastEnhancedFrame);
-        last_enhanced_timestamp_ = mpTracker->mCurrentFrame.mTimeStamp;
+        last_enhanced_timestamp_ = curFrame.mTimeStamp;
         last_enhanced_frame_ = new Frame(frameToBeAdded);
         //mpKaskadeOptimizer -> b_canAddNewFrames = true;
     }else if (isEnhanced && isPoseEmpty){
@@ -338,11 +341,13 @@ void System::TrackDeepMono(const cv::Mat &im, const double &timestamp, const boo
 }
 
 void System::TrackDeepDepth(const cv::Mat &im, const cv::Mat &depth, const double &timestamp){
+/*
     std::cout << "TrackDeepDepth: called" << std::endl;
     bool matching_timestamps = true; timestamps_match(timestamp, last_enhanced_timestamp_);
     //std::cout << "Matching timestamps: " << matching_timestamps << "    Diff:" << timestamp -  last_enhanced_timestamp_ << std::endl;
     if(matching_timestamps){
         //Create a new frame with the image and the depth information
+
 
         mpKaskadeOptimizer -> b_canAddNewFrames = false;
 
@@ -358,10 +363,9 @@ void System::TrackDeepDepth(const cv::Mat &im, const cv::Mat &depth, const doubl
             Frame frameToBeAdded = Frame(*last_enhanced_frame_);       
             //Display the number of map points in frameToBeAdded
             frameToBeAdded.ComputeStereoFromRGBD(depth);
-
-
             //Destroy mutex lock_guard
             lock.~lock_guard();
+
             //Insert Enhanced Frame into the Kaskade Optimizer
             //mpKaskadeOptimizer -> AddEnhancedFrame(frameToBeAdded);
             mpKaskadeOptimizer -> AddFrame(frameToBeAdded);
@@ -384,6 +388,7 @@ void System::TrackDeepDepth(const cv::Mat &im, const cv::Mat &depth, const doubl
         }
 
     }
+*/
 }
 
 

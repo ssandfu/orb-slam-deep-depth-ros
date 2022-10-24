@@ -24,6 +24,7 @@
 
 #include <string>
 #include <thread>
+#include <chrono>
 #include <unistd.h>
 #include <opencv2/core/core.hpp>
 #include <sys/resource.h>
